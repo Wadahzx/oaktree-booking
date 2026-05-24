@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Panel – Oaktree Meeting Room Booking</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/styles.css">
+  <style>
+    .admin-topbar-badge { background:rgba(201,168,76,.15); color:var(--gold); border:1px solid rgba(201,168,76,.3); font-size:11px; font-weight:700; padding:3px 10px; border-radius:20px; letter-spacing:.3px; }
+    .analytics-card { background:var(--white); border:1px solid var(--grey-border); border-radius:var(--radius-md); padding:20px; box-shadow:var(--shadow-sm); }
+    .audit-row { display:grid; grid-template-columns:140px 100px 1fr 140px; gap:12px; padding:10px 16px; border-bottom:1px solid var(--grey-border); font-size:13px; align-items:start; }
+    .audit-row:last-child { border-bottom:none; }
+    .audit-action { display:inline-flex; align-items:center; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:600; }
+    .audit-CREATE   { background:#EEF2FF; color:#4F46E5; }
+    .audit-CANCEL, .audit-ADMIN_CANCEL { background:var(--danger-bg); color:var(--danger); }
+    .audit-OVERRIDE { background:var(--warning-bg); color:var(--warning); }
+    .audit-BLOCK    { background:#F3F4F6; color:#374151; }
+    .audit-UNBLOCK  { background:var(--success-bg); color:var(--green); }
+    .audit-SETTINGS_UPDATE, .audit-UPDATE_ROOM { background:rgba(27,42,74,.08); color:var(--navy); }
+    .audit-CREATE_RECURRING { background:#EEF2FF; color:#4F46E5; }
+    .block-chip { display:inline-flex; align-items:center; gap:6px; background:var(--grey-bg); border:1px solid var(--grey-border); border-radius:var(--radius-sm); padding:6px 12px; font-size:13px; }
+    .block-chip-remove { background:none; border:none; color:var(--text-muted); cursor:pointer; padding:0 2px; line-height:1; font-size:16px; }
+    .block-chip-remove:hover { color:var(--danger); }
+  </style>
+</head>
+<body>
+
+<!-- Admin Login Screen -->
+<div class="admin-login-wrap" id="loginScreen">
+  <div class="admin-login-card">
+    <div class="admin-login-icon">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+    </div>
+    <h1>Admin Access</h1>
+    <p>Enter your admin access code to manage the Oaktree Meeting Room Booking System.</p>
+    <div class="form-group" style="text-align:left">
+      <label for="adminCode">Access Code <span class="required">*</span></label>
+      <input type="password" id="adminCode" placeholder="Enter access code" autocomplete="current-password"
+        onkeydown="if(event.key==='Enter') submitAdminLogin()">
+      <div class="input-error" id="loginError" style="display:none;">Incorrect access code. Please try again.</div>
+    </div>
+    <button class="btn btn-primary w-full" onclick="submitAdminLogin()" id="loginBtn" style="margin-top:4px">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+      Sign In to Admin Panel
+    </button>
+    <p style="margin-top:20px;font-size:12px;color:var(--text-muted)">This panel is restricted to authorised administrators only.</p>
+    <div style="margin-top:16px"><a href="/" style="font-size:13px;color:var(--navy);text-decoration:none;">← Back to Dashboard</a></div>
+  </div>
+</div>
+
+<!-- Admin Panel (shown after login) -->
+<div class="app-container hidden" id="adminPanel">
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-mark" id="sidebarLogoMark">OG</div>
+      <div class="logo-text"><span class="company-name">Oaktree Group</span><span class="system-name">Admin Panel</span></div>
+    </div>
+    <nav class="sidebar-nav">
+      <span class="nav-label">Main Menu</span>
+      <a href="/" class="nav-item"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg><span>Dashboard</span></a>
+      <a href="/book" class="nav-item"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg><span>Book a Room</span></a>
+      <a href="/calendar" class="nav-item"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span>Calendar</span></a>
+      <a href="/my-bookings" class="nav-item"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg><span>My Bookings</span></a>
+      <div class="nav-divider"></div>
+      <span class="nav-label">Administration</span>
+      <a href="/admin" class="nav-item active"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg><span>Admin Panel</span></a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="nav-divider"></div>
+      <button class="theme-toggle" id="themeToggle"><svg id="themeIcon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg><span id="themeLabel">Dark Mode</span></button>
+      <button class="nav-item" onclick="adminLogout()" style="cursor:pointer;color:var(--danger);background:none;border:none;width:100%;text-align:left;font-family:inherit;font-size:14px;font-weight:500;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        <span>Sign Out</span>
+      </button>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <header class="topbar">
+      <button class="sidebar-toggle" id="sidebarToggle"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
+      <div class="topbar-title">Admin Panel</div>
+      <div class="topbar-right">
+        <span class="admin-topbar-badge">Administrator</span>
+        <div class="date-display" id="currentDate"></div>
+      </div>
+    </header>
+
+    <div class="page-content">
+      <!-- Admin Stats -->
+      <div class="stats-grid mb-3" id="adminStats">
+        <div class="stat-card"><div class="stat-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div><div class="stat-label">Total Bookings</div><div class="stat-value" id="aSTotal">—</div><div class="stat-sub">all time confirmed</div></div>
+        <div class="stat-card"><div class="stat-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div class="stat-label">Today</div><div class="stat-value" id="aSToday">—</div><div class="stat-sub">bookings today</div></div>
+        <div class="stat-card"><div class="stat-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div><div class="stat-label">Cancelled</div><div class="stat-value" id="aSCancelled">—</div><div class="stat-sub">total cancellations</div></div>
+        <div class="stat-card"><div class="stat-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div><div class="stat-label">Overridden</div><div class="stat-value" id="aSOverridden">—</div><div class="stat-sub">priority overrides</div></div>
+      </div>
+
+      <!-- Admin Tabs -->
+      <div class="tab-nav">
+        <button class="tab-btn active" data-tab="bookings">All Bookings</button>
+        <button class="tab-btn" data-tab="blocks">Block Slots</button>
+        <button class="tab-btn" data-tab="recurring">Recurring</button>
+        <button class="tab-btn" data-tab="rooms">Rooms</button>
+        <button class="tab-btn" data-tab="analytics">Analytics</button>
+        <button class="tab-btn" data-tab="settings">Settings</button>
+        <button class="tab-btn" data-tab="audit">Audit Log</button>
+      </div>
+
+      <!-- TAB: All Bookings -->
+      <div class="tab-panel active" id="tab-bookings">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              All Reservations
+            </div>
+            <button class="btn btn-outline btn-sm" onclick="loadAdminBookings()">Refresh</button>
+          </div>
+          <div class="card-body" style="padding-bottom:0">
+            <div class="filter-bar">
+              <div class="search-input-wrap">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input type="text" id="bSearch" placeholder="Search by name or email…" oninput="loadAdminBookings()">
+              </div>
+              <input type="date" id="bDate" onchange="loadAdminBookings()" style="width:160px">
+              <select id="bRoom" onchange="loadAdminBookings()" style="width:150px">
+                <option value="">All Rooms</option>
+                <option value="oak_room">Oak Room</option>
+                <option value="tree_room">Tree Room</option>
+              </select>
+              <select id="bStatus" onchange="loadAdminBookings()" style="width:150px">
+                <option value="">All Statuses</option>
+                <option value="confirmed">Confirmed</option>
+                <option value="cancelled">Cancelled</option>
+                <option value="overridden">Overridden</option>
+              </select>
+              <button class="btn btn-outline btn-sm" onclick="clearBookingFilters()">Clear Filters</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr>
+                <th>Employee</th><th>Room</th><th>Date</th><th>Time</th><th>Duration</th><th>Purpose</th><th>Status</th><th>Actions</th>
+              </tr></thead>
+              <tbody id="adminBookingsBody">
+                <tr class="loading-row"><td colspan="8"><div class="spinner spinner-dark"></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: Block Slots -->
+      <div class="tab-panel" id="tab-blocks">
+        <div class="two-col" style="align-items:start">
+          <div class="card">
+            <div class="card-header"><div class="card-title"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Add Block</div></div>
+            <div class="card-body">
+              <form id="blockForm" novalidate>
+                <div class="form-group">
+                  <label for="blockRoom">Room <span class="required">*</span></label>
+                  <select id="blockRoom" required>
+                    <option value="">Select a room</option>
+                    <option value="oak_room">Oak Room</option>
+                    <option value="tree_room">Tree Room</option>
+                  </select>
+                </div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="blockDate">Date <span class="required">*</span></label>
+                    <input type="date" id="blockDate" required>
+                  </div>
+                  <div class="form-group">
+                    <label for="blockReason">Reason <span class="required">*</span></label>
+                    <input type="text" id="blockReason" placeholder="e.g. Maintenance, Private event" required>
+                  </div>
+                </div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="blockStart">Start Time <span class="required">*</span></label>
+                    <input type="time" id="blockStart" required>
+                  </div>
+                  <div class="form-group">
+                    <label for="blockEnd">End Time <span class="required">*</span></label>
+                    <input type="time" id="blockEnd" required>
+                  </div>
+                </div>
+                <button type="submit" class="btn btn-primary w-full">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                  Block This Time Slot
+                </button>
+              </form>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Active Blocks</div>
+              <button class="btn btn-outline btn-sm" onclick="loadBlocks()">Refresh</button>
+            </div>
+            <div class="card-body" style="padding:0">
+              <div id="blocksList">
+                <div class="empty-state" style="padding:40px 0">
+                  <div class="empty-state-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+                  <div class="empty-state-title">No blocked slots configured</div>
+                  <div class="empty-state-desc">Add a block to prevent employees from booking a specific time slot.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: Recurring Bookings -->
+      <div class="tab-panel" id="tab-recurring">
+        <div class="card">
+          <div class="card-header"><div class="card-title"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg> Create Recurring Booking</div></div>
+          <div class="card-body">
+            <p style="font-size:14px;color:var(--text-secondary);margin-bottom:20px;">Create bookings that repeat on a schedule. Slots that are already taken will be automatically skipped.</p>
+            <form id="recurringForm" novalidate>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="rName">Employee Name <span class="required">*</span></label>
+                  <input type="text" id="rName" placeholder="Full name" required>
+                </div>
+                <div class="form-group">
+                  <label for="rEmail">Employee Email <span class="required">*</span></label>
+                  <input type="email" id="rEmail" placeholder="email@oaktree.com" required>
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="rRoom">Room <span class="required">*</span></label>
+                  <select id="rRoom" required>
+                    <option value="">Select a room</option>
+                    <option value="oak_room">Oak Room</option>
+                    <option value="tree_room">Tree Room</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="rPattern">Recurrence Pattern <span class="required">*</span></label>
+                  <select id="rPattern" required>
+                    <option value="">Select pattern</option>
+                    <option value="daily">Daily</option>
+                    <option value="weekdays">Weekdays (Mon–Fri)</option>
+                    <option value="weekly">Weekly (same day)</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="rStartDate">Start Date <span class="required">*</span></label>
+                  <input type="date" id="rStartDate" required>
+                </div>
+                <div class="form-group">
+                  <label for="rEndDate">End Date <span class="required">*</span></label>
+                  <input type="date" id="rEndDate" required>
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="rTime">Start Time <span class="required">*</span></label>
+                  <input type="time" id="rTime" required>
+                </div>
+                <div class="form-group">
+                  <label for="rDuration">Duration <span class="required">*</span></label>
+                  <select id="rDuration" required>
+                    <option value="">Select duration</option>
+                    <option value="30">30 minutes</option>
+                    <option value="60">1 hour</option>
+                    <option value="90">1.5 hours</option>
+                    <option value="120">2 hours</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="rPurpose">Meeting Purpose <span class="required">*</span></label>
+                  <input type="text" id="rPurpose" placeholder="e.g. Weekly Team Standup" required>
+                </div>
+                <div class="form-group">
+                  <label for="rCategory">Category</label>
+                  <select id="rCategory">
+                    <option value="meeting">General Meeting</option>
+                    <option value="training">Training</option>
+                    <option value="workshop">Workshop</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+              </div>
+              <button type="submit" class="btn btn-primary">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+                Create Recurring Booking
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: Rooms -->
+      <div class="tab-panel" id="tab-rooms">
+        <div class="card">
+          <div class="card-header"><div class="card-title"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg> Manage Rooms</div></div>
+          <div class="card-body">
+            <div id="roomsManage">
+              <div class="spinner spinner-dark"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: Analytics -->
+      <div class="tab-panel" id="tab-analytics">
+        <div id="analyticsContent">
+          <div class="empty-state"><div class="spinner spinner-dark"></div></div>
+        </div>
+      </div>
+
+      <!-- TAB: Settings -->
+      <div class="tab-panel" id="tab-settings">
+        <div class="two-col" style="align-items:start">
+          <div class="card">
+            <div class="card-header"><div class="card-title"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg> Booking Rules</div></div>
+            <div class="card-body">
+              <div class="form-group">
+                <label for="sOfficeStart">Office Hours Start</label>
+                <input type="time" id="sOfficeStart">
+              </div>
+              <div class="form-group">
+                <label for="sOfficeEnd">Office Hours End</label>
+                <input type="time" id="sOfficeEnd">
+              </div>
+              <div class="form-group">
+                <label for="sMaxDur">Max Booking Duration (minutes)</label>
+                <select id="sMaxDur">
+                  <option value="60">60 minutes</option>
+                  <option value="90">90 minutes</option>
+                  <option value="120">120 minutes (2 hours)</option>
+                  <option value="180">180 minutes (3 hours)</option>
+                  <option value="240">240 minutes (4 hours)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="sInterval">Booking Slot Interval (minutes)</label>
+                <select id="sInterval">
+                  <option value="30">30 minutes</option>
+                  <option value="60">60 minutes (1 hour)</option>
+                </select>
+              </div>
+              <button class="btn btn-primary" onclick="saveBookingRules()">Save Booking Rules</button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header"><div class="card-title"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg> Email / SMTP</div></div>
+            <div class="card-body">
+              <div class="form-group">
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                  <input type="checkbox" id="sEmailEnabled" style="width:auto">
+                  Enable Email Notifications
+                </label>
+                <div class="input-hint">When disabled, emails are logged to the server console.</div>
+              </div>
+              <div class="form-group">
+                <label for="sSmtpHost">SMTP Host</label>
+                <input type="text" id="sSmtpHost" placeholder="smtp.office365.com">
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="sSmtpPort">SMTP Port</label>
+                  <input type="number" id="sSmtpPort" placeholder="587">
+                </div>
+                <div class="form-group">
+                  <label for="sSmtpFrom">From Address</label>
+                  <input type="email" id="sSmtpFrom" placeholder="noreply@oaktree.com">
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="sSmtpUser">SMTP Username</label>
+                <input type="text" id="sSmtpUser" placeholder="smtp-user@oaktree.com">
+              </div>
+              <div class="form-group">
+                <label for="sSmtpPass">SMTP Password</label>
+                <input type="password" id="sSmtpPass" placeholder="Leave blank to keep existing password">
+              </div>
+              <button class="btn btn-primary" onclick="saveEmailSettings()" style="margin-bottom:20px;">Save Email Settings</button>
+
+              <!-- Test Email -->
+              <div style="border-top:1px solid var(--grey-border);padding-top:18px;">
+                <div style="font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:4px;">Send Test Email</div>
+                <div class="input-hint" style="margin-bottom:10px;">Verify your SMTP settings are working. If no SMTP is configured, a preview link via Ethereal is provided instead.</div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                  <input type="email" id="testEmailAddr" placeholder="your.email@example.com" style="flex:1;min-width:200px;margin-bottom:0;">
+                  <button class="btn btn-outline btn-sm" onclick="sendTestEmail()" style="white-space:nowrap;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                    Send Test
+                  </button>
+                </div>
+                <div id="testEmailResult" style="margin-top:8px;font-size:12px;line-height:1.5;"></div>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header"><div class="card-title"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg> Branding</div></div>
+            <div class="card-body">
+              <div class="form-group">
+                <label for="sCompanyName">Company Name</label>
+                <input type="text" id="sCompanyName" placeholder="Oaktree Group">
+              </div>
+              <div class="form-group">
+                <label for="sLogoText">Logo Monogram (2–3 letters)</label>
+                <input type="text" id="sLogoText" placeholder="OG" maxlength="3">
+                <div class="input-hint">Used as fallback text in the sidebar when no logo image is uploaded.</div>
+              </div>
+              <button class="btn btn-primary" onclick="saveBranding()" style="margin-bottom:20px;">Save Branding</button>
+
+              <div style="border-top:1px solid var(--grey-border);padding-top:18px;">
+                <div style="font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:4px;">Company Logo Image</div>
+                <div class="input-hint" style="margin-bottom:12px;">Upload an image to replace the text monogram in the sidebar. Recommended: square, transparent background. Max 2 MB (PNG, JPG, SVG, WebP).</div>
+
+                <!-- Current logo preview -->
+                <div id="currentLogoPreview" style="margin-bottom:12px;min-height:20px;display:flex;align-items:center;gap:12px;">
+                  <span style="font-size:12px;color:var(--text-muted);">No logo uploaded</span>
+                </div>
+
+                <!-- Upload / Remove buttons -->
+                <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                  <label class="btn btn-outline btn-sm" style="cursor:pointer;margin:0;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    Choose Logo File
+                    <input type="file" id="logoFileInput" accept="image/*" style="display:none" onchange="uploadLogo(this)">
+                  </label>
+                  <button class="btn btn-sm" id="logoRemoveBtn" onclick="removeLogo()" style="display:none;background:var(--danger-bg);color:var(--danger);border-color:var(--danger);">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+                    Remove Logo
+                  </button>
+                </div>
+                <div id="logoUploadStatus" style="margin-top:8px;font-size:12px;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: Audit Log -->
+      <div class="tab-panel" id="tab-audit">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg> Audit Trail</div>
+            <button class="btn btn-outline btn-sm" onclick="loadAuditLog()">Refresh</button>
+          </div>
+          <div id="auditContent">
+            <div class="empty-state" style="padding:48px 0">
+              <div class="empty-state-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+              <div class="empty-state-title">No audit entries yet</div>
+              <div class="empty-state-desc">All admin actions will be recorded here.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /page-content -->
+  </main>
+</div>
+
+<!-- Override Modal -->
+<div class="modal-overlay" id="overrideModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Override Booking</div>
+      <button class="modal-close" id="overrideClose"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div id="overrideDetail" class="booking-detail mb-2"></div>
+      <div class="form-group mt-2">
+        <label for="overrideReason">Reason for Override <span class="required">*</span></label>
+        <textarea id="overrideReason" rows="3" placeholder="e.g. Priority board meeting, executive use…"></textarea>
+      </div>
+      <p style="font-size:13px;color:var(--text-muted);">The employee will be notified by email that their booking has been overridden.</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" id="overrideCancelBtn">Cancel</button>
+      <button class="btn btn-danger" id="overrideConfirmBtn">Override Booking</button>
+    </div>
+  </div>
+</div>
+
+<!-- Admin Cancel Modal -->
+<div class="modal-overlay" id="adminCancelModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Cancel Booking</div>
+      <button class="modal-close" id="adminCancelClose"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div id="adminCancelDetail" class="booking-detail mb-2"></div>
+      <div class="form-group mt-2">
+        <label for="adminCancelReason">Reason (optional)</label>
+        <textarea id="adminCancelReason" rows="2" placeholder="Reason for cancellation…"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" id="adminCancelNoBtn">Keep Booking</button>
+      <button class="btn btn-danger" id="adminCancelYesBtn">Cancel Booking</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+<script src="/js/app.js"></script>
+<script src="/js/admin.js"></script>
+</body>
+</html>

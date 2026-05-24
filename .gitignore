@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+
+# Database (runtime data — excluded from repo)
+data/
+
+# Environment variables (contains secrets)
+.env
+
+# Uploaded files
+public/uploads/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor folders
+.vscode/
+.idea/
