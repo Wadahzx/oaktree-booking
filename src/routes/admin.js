@@ -8,7 +8,8 @@ const { sendCancellationNotification, sendOverrideNotification, sendTestEmail } 
 
 // ── MULTER (logo upload) ──────────────────────────────────────
 const multer  = require('multer');
-const uploadDir = path.join(__dirname, '../../public/uploads');
+// UPLOADS_DIR can be overridden via env var (e.g. Render persistent disk at /var/data/uploads)
+const uploadDir = process.env.UPLOADS_DIR || path.join(__dirname, '../../public/uploads');
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
 const logoStorage = multer.diskStorage({

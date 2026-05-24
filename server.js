@@ -17,6 +17,10 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Serve uploaded files (logo etc.) from configurable uploads dir (supports persistent disk on Render)
+const uploadsDir = process.env.UPLOADS_DIR || path.join(__dirname, 'public/uploads');
+app.use('/uploads', require('express').static(uploadsDir));
+
 app.use('/api/bookings', bookingsRouter);
 app.use('/api/admin',    adminRouter);
 app.use('/api/rooms',    roomsRouter);

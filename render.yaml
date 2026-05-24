@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: oaktree-booking
+    env: node
+    plan: starter
+    buildCommand: npm install
+    startCommand: node server.js
+    healthCheckPath: /api/rooms
+    disk:
+      name: oaktree-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DB_PATH
+        value: /var/data/oaktree.db
+      - key: UPLOADS_DIR
+        value: /var/data/uploads
+      - key: ADMIN_CODE
+        value: Fathima

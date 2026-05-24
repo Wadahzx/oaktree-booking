@@ -1,7 +1,8 @@
 const path = require('path');
 const fs   = require('fs');
 
-const DB_PATH = path.join(__dirname, '../../data/oaktree.db');
+// DB_PATH can be overridden via env var (e.g. Render persistent disk at /var/data)
+const DB_PATH = process.env.DB_PATH || path.join(__dirname, '../../data/oaktree.db');
 const dataDir = path.dirname(DB_PATH);
 if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
 
