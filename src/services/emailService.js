@@ -7,13 +7,44 @@ function getConfig() {
 }
 
 function getTransporter(cfg) {
-  if (!cfg.smtp_host || !cfg.smtp_user || !cfg.smtp_pass) return null;
-  return nodemailer.createTransport({
-    host: cfg.smtp_host,
-    port: parseInt(cfg.smtp_port || '587'),
-    secure: cfg.smtp_port === '465',
-    auth: { user: cfg.smtp_user, pass: cfg.smtp_pass }
-  });
+  // Priority 1: Brevo SMTP key (no domain verification needed)
+  if (cfg.brevo_smtp_key && cfg.brevo_smtp_user) {
+    return nodemailer.createTransport({
+      host:   'smtp-relay.brevo.com',
+      port:   587,
+      secure: false,
+      auth:   { user: cfg.brevo_smtp_user, pass: cfg.brevo_smtp_key }
+    });
+  }
+  // Priority 2: Resend API key (needs verified domain for sending to any address)
+  if (cfg.resend_api_key) {
+    return nodemailer.createTransport({
+      host:   'smtp.resend.com',
+      port:   465,
+      secure: true,
+      auth:   { user: 'resend', pass: cfg.resend_api_key }
+    });
+  }
+  // Priority 3: Custom SMTP
+  if (cfg.smtp_host && cfg.smtp_user && cfg.smtp_pass) {
+    return nodemailer.createTransport({
+      host:   cfg.smtp_host,
+      port:   parseInt(cfg.smtp_port || '587'),
+      secure: cfg.smtp_port === '465',
+      auth:   { user: cfg.smtp_user, pass: cfg.smtp_pass }
+    });
+  }
+  return null;
+}
+
+function getSenderAddress(cfg) {
+  if (cfg.brevo_smtp_key && cfg.brevo_smtp_user) {
+    return `"Oaktree Group Bookings" <${cfg.brevo_smtp_user}>`;
+  }
+  if (cfg.resend_api_key) {
+    return 'Oaktree Group Bookings <onboarding@resend.dev>';
+  }
+  return `"Oaktree Group Bookings" <${cfg.smtp_from || 'noreply@oaktree.com'}>`;
 }
 
 function fmt12(t) {
@@ -49,11 +80,14 @@ function bookingTable(b, bg, border) {
 async function sendBookingConfirmation(booking) {
   const cfg = getConfig();
   if (cfg.email_notifications_enabled !== 'true') {
-    console.log(`[EMAIL] Confirmation → ${booking.employee_email} | ${booking.room_name} | ${booking.date} ${booking.start_time}`);
+    console.log(`[EMAIL] Notifications disabled. Confirmation skipped for ${booking.employee_email}`);
     return;
   }
   const t = getTransporter(cfg);
-  if (!t) { console.log(`[EMAIL] SMTP not configured. Confirmation skipped for ${booking.employee_email}`); return; }
+  if (!t) {
+    console.log(`[EMAIL] No email service configured. Go to Admin → Settings → Email to set up Resend (free).`);
+    return;
+  }
 
   const html = `<div style="${baseStyle}">
     <div style="${headerStyle('#1B2A4A')}">
@@ -72,7 +106,7 @@ async function sendBookingConfirmation(booking) {
   </div>`;
 
   await t.sendMail({
-    from: `"Oaktree Group Bookings" <${cfg.smtp_from || 'noreply@oaktree.com'}>`,
+    from: getSenderAddress(cfg),
     to: booking.employee_email,
     subject: `Booking Confirmed: ${booking.room_name} – ${fmtDate(booking.date)}`,
     html
@@ -105,7 +139,7 @@ async function sendCancellationNotification(booking, reason) {
   </div>`;
 
   await t.sendMail({
-    from: `"Oaktree Group Bookings" <${cfg.smtp_from || 'noreply@oaktree.com'}>`,
+    from: getSenderAddress(cfg),
     to: booking.employee_email,
     subject: `Booking Cancelled: ${booking.room_name || booking.room_id} – ${fmtDate(booking.date)}`,
     html
@@ -139,7 +173,7 @@ async function sendOverrideNotification(booking, reason) {
   </div>`;
 
   await t.sendMail({
-    from: `"Oaktree Group Bookings" <${cfg.smtp_from || 'noreply@oaktree.com'}>`,
+    from: getSenderAddress(cfg),
     to: booking.employee_email,
     subject: `IMPORTANT: Your Booking Has Been Overridden – ${booking.room_name || booking.room_id}`,
     html
@@ -176,7 +210,7 @@ async function sendReminderEmail(booking) {
   </div>`;
 
   await t.sendMail({
-    from: `"Oaktree Group Bookings" <${cfg.smtp_from || 'noreply@oaktree.com'}>`,
+    from: getSenderAddress(cfg),
     to: booking.employee_email,
     subject: `Reminder: ${booking.room_name} – Meeting in 15 Minutes`,
     html
@@ -202,20 +236,15 @@ async function sendReminderEmails() {
 
 async function sendTestEmail(toAddress) {
   const cfg = getConfig();
-  let transporter;
   let isEthereal = false;
   let previewUrl = null;
 
-  if (cfg.smtp_host && cfg.smtp_user && cfg.smtp_pass) {
-    // Use the configured SMTP server
-    transporter = nodemailer.createTransport({
-      host:   cfg.smtp_host,
-      port:   parseInt(cfg.smtp_port || '587'),
-      secure: cfg.smtp_port === '465',
-      auth:   { user: cfg.smtp_user, pass: cfg.smtp_pass }
-    });
-  } else {
-    // No SMTP configured — fall back to Ethereal test account
+  // Use the same transporter logic as all other emails (Resend key takes priority)
+  let transporter = getTransporter(cfg);
+
+  if (!transporter) {
+    // Nothing configured at all — fall back to Ethereal so the user can at least
+    // see a preview and know the email system itself works
     isEthereal = true;
     const testAccount = await nodemailer.createTestAccount();
     transporter = nodemailer.createTransport({
@@ -240,7 +269,7 @@ async function sendTestEmail(toAddress) {
   </div>`;
 
   const info = await transporter.sendMail({
-    from:    `"Oaktree Group Bookings" <${cfg.smtp_from || 'noreply@oaktree.com'}>`,
+    from:    isEthereal ? '"Oaktree Group Bookings" <noreply@oaktree.com>' : getSenderAddress(cfg),
     to:      toAddress,
     subject: 'Test Email – Oaktree Meeting Room Booking',
     html

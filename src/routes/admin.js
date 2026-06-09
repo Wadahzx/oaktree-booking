@@ -151,7 +151,10 @@ router.get('/settings', adminAuth, (req, res) => {
   const db = getDb();
   const rows = db.prepare('SELECT key, value FROM admin_settings').all();
   const s = Object.fromEntries(rows.map(r => [r.key, r.value]));
-  delete s.smtp_pass;
+  // Don't expose secrets — return boolean presence instead
+  s.smtp_pass      = s.smtp_pass      ? 'set' : '';
+  s.resend_api_key = s.resend_api_key ? 'set' : '';
+  s.brevo_smtp_key = s.brevo_smtp_key ? 'set' : '';
   res.json({ success: true, data: s });
 });
 

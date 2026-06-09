@@ -839,6 +839,93 @@ table.data-table {
   position: relative;
 }
 .success-banner svg { width: 24px; height: 24px; color: var(--green); flex-shrink: 0; margin-top: 1px; }
+
+/* ── RTL / ARABIC SUPPORT ────────────────────────────────── */
+[dir="rtl"] {
+  font-family: 'Segoe UI', Tahoma, 'Arial Unicode MS', Arial, sans-serif;
+}
+[dir="rtl"] .sidebar {
+  left: auto;
+  right: 0;
+  border-right: none;
+  border-left: 1px solid var(--grey-border);
+}
+[dir="rtl"] .main-content {
+  margin-left: 0;
+  margin-right: 260px;
+}
+[dir="rtl"] .sidebar.open {
+  transform: translateX(100%) !important;
+}
+@media (max-width: 768px) {
+  [dir="rtl"] .main-content { margin-right: 0; }
+  [dir="rtl"] .sidebar { right: -260px; left: auto; transform: none; }
+  [dir="rtl"] .sidebar.open { right: 0; transform: none !important; }
+}
+[dir="rtl"] .nav-item { flex-direction: row-reverse; text-align: right; }
+[dir="rtl"] .nav-label { text-align: right; }
+[dir="rtl"] .sidebar-logo { flex-direction: row-reverse; }
+[dir="rtl"] .logo-text { text-align: right; }
+[dir="rtl"] .topbar { flex-direction: row-reverse; }
+[dir="rtl"] .topbar-right { flex-direction: row-reverse; }
+[dir="rtl"] .card-header { flex-direction: row-reverse; }
+[dir="rtl"] .card-title { flex-direction: row-reverse; }
+[dir="rtl"] .page-header { flex-direction: row-reverse; }
+[dir="rtl"] .page-header-left { text-align: right; }
+[dir="rtl"] .form-group label { display: block; text-align: right; }
+[dir="rtl"] input, [dir="rtl"] select, [dir="rtl"] textarea {
+  text-align: right;
+  direction: rtl;
+}
+[dir="rtl"] .input-hint { text-align: right; }
+[dir="rtl"] .input-error { text-align: right; }
+[dir="rtl"] .stat-card { text-align: right; }
+[dir="rtl"] .stat-icon { margin-left: 0; }
+[dir="rtl"] .tab-nav { flex-direction: row-reverse; }
+[dir="rtl"] .filter-bar { flex-direction: row-reverse; }
+[dir="rtl"] .two-col { direction: rtl; }
+[dir="rtl"] .three-col { direction: rtl; }
+[dir="rtl"] .stats-grid { direction: rtl; }
+[dir="rtl"] .booking-detail-row { flex-direction: row-reverse; text-align: right; }
+[dir="rtl"] .detail-label { text-align: right; }
+[dir="rtl"] .detail-value { text-align: right; }
+[dir="rtl"] .modal-header { flex-direction: row-reverse; }
+[dir="rtl"] .modal-footer { flex-direction: row-reverse; }
+[dir="rtl"] .toast { flex-direction: row-reverse; text-align: right; }
+[dir="rtl"] .room-cards { direction: rtl; }
+[dir="rtl"] .room-card { text-align: right; }
+[dir="rtl"] .room-card-actions { flex-direction: row-reverse; }
+[dir="rtl"] .duration-pills { flex-direction: row-reverse; }
+[dir="rtl"] .actions { flex-direction: row-reverse; }
+[dir="rtl"] .data-table th, [dir="rtl"] .data-table td { text-align: right; }
+[dir="rtl"] .empty-state { direction: rtl; }
+[dir="rtl"] .schedule-item { flex-direction: row-reverse; text-align: right; }
+[dir="rtl"] .schedule-time { text-align: right; }
+[dir="rtl"] .sidebar-footer { direction: rtl; }
+[dir="rtl"] .lang-toggle { direction: ltr; }
+
+/* Language toggle button */
+.lang-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 12px;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-family: inherit;
+  transition: background .15s, color .15s;
+  text-align: left;
+  margin-top: 4px;
+}
+[dir="rtl"] .lang-toggle { text-align: right; flex-direction: row-reverse; }
+.lang-toggle:hover { background: var(--grey-bg); color: var(--text-primary); }
+.lang-toggle svg { flex-shrink: 0; }
 .success-banner-title { font-size: 15px; font-weight: 700; color: var(--green); margin-bottom: 4px; }
 .success-banner-msg   { font-size: 13.5px; color: var(--text-secondary); }
 .success-banner-close {

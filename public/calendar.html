@@ -26,18 +26,19 @@
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-logo">
       <div class="logo-mark" id="sidebarLogoMark">OG</div>
-      <div class="logo-text"><span class="company-name">Oaktree Group</span><span class="system-name">Meeting Room Booking</span></div>
+      <div class="logo-text"><span class="company-name">Oaktree Group</span><span class="system-name" data-i18n="brand.system">Meeting Room Booking</span></div>
     </div>
     <nav class="sidebar-nav">
       <span class="nav-label">Main Menu</span>
-      <a href="/" class="nav-item"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg><span>Dashboard</span></a>
-      <a href="/book" class="nav-item"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg><span>Book a Room</span></a>
-      <a href="/calendar" class="nav-item active"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span>Calendar</span></a>
-      <a href="/my-bookings" class="nav-item"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg><span>My Bookings</span></a>
+      <a href="/" class="nav-item"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg><span data-i18n="nav.dashboard">Dashboard</span></a>
+      <a href="/book" class="nav-item"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg><span data-i18n="nav.book">Book a Room</span></a>
+      <a href="/calendar" class="nav-item active"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span data-i18n="nav.calendar">Calendar</span></a>
+      <a href="/my-bookings" class="nav-item"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg><span data-i18n="nav.mybookings">My Bookings</span></a>
     </nav>
     <div class="sidebar-footer">
       <div class="nav-divider"></div>
-      <a href="/admin" class="nav-item admin-link"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg><span>Admin Panel</span></a>
+      <a href="/admin" class="nav-item admin-link"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg><span data-i18n="nav.admin">Admin Panel</span></a>
+      <button class="lang-toggle" onclick="toggleLanguage()"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg><span id="langLabel">العربية</span></button>
       <button class="theme-toggle" id="themeToggle"><svg id="themeIcon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg><span id="themeLabel">Dark Mode</span></button>
     </div>
   </aside>
@@ -45,9 +46,9 @@
   <main class="main-content">
     <header class="topbar">
       <button class="sidebar-toggle" id="sidebarToggle"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
-      <div class="topbar-title">Schedule &amp; Calendar</div>
+      <div class="topbar-title" data-i18n="cal.topbar">Schedule &amp; Calendar</div>
       <div class="topbar-right">
-        <span class="internal-badge">Internal Tool</span>
+        <span class="internal-badge" data-i18n="common.internal">Internal Tool</span>
         <div class="date-display" id="currentDate"></div>
       </div>
     </header>
@@ -58,9 +59,9 @@
         <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
           <!-- Date Nav -->
           <div style="display:flex;align-items:center;gap:8px;">
-            <button class="btn btn-outline btn-sm" id="prevBtn">← Prev</button>
-            <button class="btn btn-outline btn-sm" id="todayBtn">Today</button>
-            <button class="btn btn-outline btn-sm" id="nextBtn">Next →</button>
+            <button class="btn btn-outline btn-sm" id="prevBtn" data-i18n="cal.prev">← Prev</button>
+            <button class="btn btn-outline btn-sm" id="todayBtn" data-i18n="cal.today">Today</button>
+            <button class="btn btn-outline btn-sm" id="nextBtn" data-i18n="cal.next">Next →</button>
           </div>
           <h2 id="calTitle" style="font-size:16px;font-weight:700;color:var(--text-primary);margin:0;min-width:180px;"></h2>
         </div>
@@ -73,19 +74,19 @@
           </div>
           <!-- View Toggle -->
           <div class="view-toggle">
-            <button class="view-btn active" id="btnDay">Day</button>
-            <button class="view-btn" id="btnWeek">Week</button>
+            <button class="view-btn active" id="btnDay" data-i18n="cal.day">Day</button>
+            <button class="view-btn" id="btnWeek" data-i18n="cal.week">Week</button>
           </div>
-          <a href="/book" class="btn btn-gold btn-sm">+ Book</a>
+          <a href="/book" class="btn btn-gold btn-sm" data-i18n="common.book">+ Book</a>
         </div>
       </div>
 
       <!-- Legend -->
       <div style="display:flex;align-items:center;gap:16px;margin-bottom:14px;flex-wrap:wrap;">
-        <span style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;">Legend:</span>
-        <span style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--navy);"><span style="width:12px;height:12px;background:rgba(27,42,74,.12);border-left:3px solid var(--navy);display:inline-block;border-radius:2px;"></span> Oak Room</span>
-        <span style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--green);"><span style="width:12px;height:12px;background:rgba(42,92,69,.1);border-left:3px solid var(--green);display:inline-block;border-radius:2px;"></span> Tree Room</span>
-        <span style="display:flex;align-items:center;gap:5px;font-size:12px;color:#6B7280;"><span style="width:12px;height:12px;background:#F3F4F6;border-left:3px solid #9CA3AF;display:inline-block;border-radius:2px;"></span> Blocked</span>
+        <span style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;" data-i18n="cal.legend">Legend:</span>
+        <span style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--navy);"><span style="width:12px;height:12px;background:rgba(27,42,74,.12);border-left:3px solid var(--navy);display:inline-block;border-radius:2px;"></span><span data-i18n="common.oakroom"> Oak Room</span></span>
+        <span style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--green);"><span style="width:12px;height:12px;background:rgba(42,92,69,.1);border-left:3px solid var(--green);display:inline-block;border-radius:2px;"></span><span data-i18n="common.treeroom"> Tree Room</span></span>
+        <span style="display:flex;align-items:center;gap:5px;font-size:12px;color:#6B7280;"><span style="width:12px;height:12px;background:#F3F4F6;border-left:3px solid #9CA3AF;display:inline-block;border-radius:2px;"></span><span data-i18n="cal.blocked"> Blocked</span></span>
       </div>
 
       <!-- Calendar Container -->
@@ -118,6 +119,7 @@
 </div>
 
 <div class="toast-container" id="toastContainer"></div>
+<script src="/js/i18n.js"></script>
 <script src="/js/app.js"></script>
 <script src="/js/calendar.js"></script>
 </body>

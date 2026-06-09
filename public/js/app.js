@@ -138,20 +138,22 @@ function fmtDuration(mins) {
 }
 
 function statusBadge(status) {
+  const T = typeof t === 'function' ? t : k => k;
   const map = {
-    confirmed:  '<span class="badge badge-confirmed">Confirmed</span>',
-    cancelled:  '<span class="badge badge-cancelled">Cancelled</span>',
-    overridden: '<span class="badge badge-overridden">Overridden</span>'
+    confirmed:  `<span class="badge badge-confirmed">${T('status.confirmed')}</span>`,
+    cancelled:  `<span class="badge badge-cancelled">${T('status.cancelled')}</span>`,
+    overridden: `<span class="badge badge-overridden">${T('status.overridden')}</span>`
   };
   return map[status] || `<span class="badge">${status}</span>`;
 }
 
 function categoryLabel(cat) {
+  const T = typeof t === 'function' ? t : k => k;
   const map = {
-    meeting:'General Meeting', interview:'Interview', training:'Training',
-    client:'Client Meeting', presentation:'Presentation', workshop:'Workshop', other:'Other'
+    meeting:'cat.meeting', interview:'cat.interview', training:'cat.training',
+    client:'cat.client', presentation:'cat.presentation', workshop:'cat.workshop', other:'cat.other'
   };
-  return map[cat] || cat || 'Meeting';
+  return map[cat] ? T(map[cat]) : (cat || 'Meeting');
 }
 
 // ── MODAL HELPERS ─────────────────────────────────────────────
@@ -246,4 +248,5 @@ document.addEventListener('DOMContentLoaded', () => {
   initModalClosers();
   initTabs();
   syncBranding();
+  if (typeof initLanguage === 'function') initLanguage();
 });

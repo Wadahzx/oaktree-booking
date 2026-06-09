@@ -438,6 +438,23 @@ async function loadSettings() {
     document.getElementById('sSmtpUser').value     = s.smtp_user || '';
     document.getElementById('sCompanyName').value  = s.company_name || 'Oaktree Group';
     document.getElementById('sLogoText').value     = s.logo_text || 'OG';
+    // Brevo status
+    const brevoStatus = document.getElementById('sBrevoStatus');
+    if (brevoStatus) {
+      if (s.brevo_smtp_key && s.brevo_smtp_user) {
+        brevoStatus.innerHTML = `<span style="color:var(--green);">✓ Brevo configured — sending from ${escHtml(s.brevo_smtp_user)}</span>`;
+        document.getElementById('sBrevoUser') && (document.getElementById('sBrevoUser').placeholder = s.brevo_smtp_user);
+      } else {
+        brevoStatus.innerHTML = '<span style="color:var(--text-muted);">Not configured yet</span>';
+      }
+    }
+    // Resend status
+    const resendStatus = document.getElementById('sResendKeyStatus');
+    if (resendStatus) {
+      resendStatus.innerHTML = s.resend_api_key
+        ? '<span style="color:var(--green);">✓ API key is saved</span>'
+        : '<span style="color:var(--text-muted);">No key saved yet</span>';
+    }
     // Logo preview
     const preview    = document.getElementById('currentLogoPreview');
     const removeBtn  = document.getElementById('logoRemoveBtn');
@@ -465,6 +482,120 @@ async function saveBookingRules() {
     });
     showToast('success', 'Booking Rules Saved', 'Office hours and duration limits updated.');
   } catch (e) { showToast('error', 'Error', e.message); }
+}
+
+async function saveOutlookSettings() {
+  const user    = (document.getElementById('sSmtpUser').value || '').trim();
+  const pass    = (document.getElementById('sSmtpPass').value || '').trim();
+  const host    = (document.getElementById('sSmtpHost').value || 'smtp.office365.com').trim();
+  const port    = (document.getElementById('sSmtpPort').value || '587').trim();
+  const enabled = document.getElementById('sEmailEnabled').checked;
+  const statusEl = document.getElementById('smtpSaveStatus');
+
+  if (!user) { statusEl.innerHTML = '<span style="color:var(--danger);">Please enter your work email address.</span>'; return; }
+
+  const settings = {
+    email_notifications_enabled: enabled ? 'true' : 'false',
+    smtp_host: host,
+    smtp_port: port,
+    smtp_from: user,
+    smtp_user: user
+  };
+  if (pass) settings.smtp_pass = pass;
+
+  try {
+    await PUT('/admin/settings', settings);
+    document.getElementById('sSmtpPass').value = '';
+    statusEl.innerHTML = `<span style="color:var(--green);">✓ Saved — sending from ${escHtml(user)}</span>`;
+    showToast('success', 'Email Setup Saved', 'Use the test button below to verify it works.');
+  } catch (e) {
+    showToast('error', 'Error', e.message);
+  }
+}
+
+async function saveBrevoSettings() {
+  const user    = (document.getElementById('sBrevoUser').value || '').trim();
+  const key     = (document.getElementById('sBrevoKey').value  || '').trim();
+  const enabled = document.getElementById('sEmailEnabled').checked;
+  const statusEl = document.getElementById('sBrevoStatus');
+
+  if (!user && !key) {
+    statusEl.innerHTML = '<span style="color:var(--danger);">Please enter your Brevo login email and SMTP key.</span>';
+    return;
+  }
+
+  const settings = { email_notifications_enabled: enabled ? 'true' : 'false' };
+  if (user) settings.brevo_smtp_user = user;
+  if (key)  settings.brevo_smtp_key  = key;
+
+  try {
+    await PUT('/admin/settings', settings);
+    document.getElementById('sBrevoKey').value = '';
+    statusEl.innerHTML = `<span style="color:var(--green);">✓ Brevo configured — emails are now active!</span>`;
+    showToast('success', 'Email Setup Complete', 'Booking confirmations will now be sent automatically.');
+  } catch (e) {
+    showToast('error', 'Error', e.message);
+  }
+}
+
+async function saveResendKey() {
+  const key = (document.getElementById('sResendKey').value || '').trim();
+  const enabled = document.getElementById('sEmailEnabled').checked;
+  const statusEl = document.getElementById('sResendKeyStatus');
+
+  const settings = { email_notifications_enabled: enabled ? 'true' : 'false' };
+  if (key) settings.resend_api_key = key;
+
+  try {
+    await PUT('/admin/settings', settings);
+    document.getElementById('sResendKey').value = '';
+    statusEl.innerHTML = key
+      ? '<span style="color:var(--green);">✓ API key saved — emails are active!</span>'
+      : '<span style="color:var(--text-muted);">Settings saved.</span>';
+    showToast('success', 'Email Setup Saved', 'Booking confirmations will now be sent automatically.');
+  } catch (e) {
+    showToast('error', 'Error', e.message);
+  }
+}
+
+function smtpPreset(provider) {
+  const hint = document.getElementById('smtpPresetHint');
+  const passHint = document.getElementById('smtpPassHint');
+  hint.style.display = 'block';
+
+  if (provider === 'gmail') {
+    document.getElementById('sSmtpHost').value = 'smtp.gmail.com';
+    document.getElementById('sSmtpPort').value = '587';
+    hint.innerHTML = `
+      <strong>Gmail setup:</strong><br>
+      1. Your <strong>Email Address</strong> and <strong>From Address</strong> = your Gmail address (e.g. <em>you@gmail.com</em>)<br>
+      2. For <strong>Password</strong>, you need an <em>App Password</em> — NOT your normal Gmail password:<br>
+      &nbsp;&nbsp;&nbsp;• Go to <a href="https://myaccount.google.com/security" target="_blank" style="color:var(--navy)">myaccount.google.com/security</a><br>
+      &nbsp;&nbsp;&nbsp;• Enable <strong>2-Step Verification</strong> if not already on<br>
+      &nbsp;&nbsp;&nbsp;• Search "App passwords" → create one for "Mail"<br>
+      &nbsp;&nbsp;&nbsp;• Copy the 16-character code — paste it as your password here`;
+    if (passHint) passHint.innerHTML = '⚠ Gmail requires a 16-character <strong>App Password</strong>, not your regular password. See instructions above.';
+  } else if (provider === 'outlook') {
+    document.getElementById('sSmtpHost').value = 'smtp-mail.outlook.com';
+    document.getElementById('sSmtpPort').value = '587';
+    hint.innerHTML = `
+      <strong>Outlook / Office 365 setup:</strong><br>
+      1. Your <strong>Email Address</strong> and <strong>From Address</strong> = your work email (e.g. <em>you@oaktree.com</em>)<br>
+      2. <strong>Password</strong> = your normal Outlook/Microsoft 365 password<br>
+      3. If your organisation enforces MFA, you may need to create an App Password in your Microsoft account settings.<br>
+      &nbsp;&nbsp;&nbsp;• Go to <a href="https://mysignins.microsoft.com/security-info" target="_blank" style="color:var(--navy)">mysignins.microsoft.com/security-info</a> → Add sign-in method → App password`;
+    if (passHint) passHint.innerHTML = 'Use your normal Microsoft/Outlook password. If MFA is enforced, use an App Password instead.';
+  } else if (provider === 'yahoo') {
+    document.getElementById('sSmtpHost').value = 'smtp.mail.yahoo.com';
+    document.getElementById('sSmtpPort').value = '587';
+    hint.innerHTML = `
+      <strong>Yahoo Mail setup:</strong><br>
+      1. Your <strong>Email Address</strong> and <strong>From Address</strong> = your Yahoo address<br>
+      2. For <strong>Password</strong>, generate an App Password:<br>
+      &nbsp;&nbsp;&nbsp;• Go to Yahoo Account Security → Generate app password<br>
+      &nbsp;&nbsp;&nbsp;• Use the generated password here (not your regular Yahoo password)`;
+    if (passHint) passHint.innerHTML = 'Yahoo requires an App Password. Generate one in your Yahoo Account Security settings.';
+  }
 }
 
 async function saveEmailSettings() {
