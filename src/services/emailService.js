@@ -1,4 +1,5 @@
 const nodemailer = require('nodemailer');
+const https     = require('https');
 const { getDb } = require('../database/db');
 
 function getConfig() {
@@ -6,45 +7,88 @@ function getConfig() {
   return Object.fromEntries(rows.map(r => [r.key, r.value]));
 }
 
+// ── Resend HTTP API (works on all hosts — no SMTP port needed) ─
+function getResendApiKey(cfg) {
+  // Check both the dedicated resend_api_key and the smtp_pass (if smtp_user=resend)
+  if (cfg.resend_api_key) return cfg.resend_api_key;
+  if (cfg.smtp_user === 'resend' && cfg.smtp_pass) return cfg.smtp_pass;
+  return null;
+}
+
+function sendViaResendApi(apiKey, fromAddress, to, subject, html) {
+  return new Promise((resolve, reject) => {
+    const payload = JSON.stringify({ from: fromAddress, to: [to], subject, html });
+    const req = https.request({
+      hostname: 'api.resend.com',
+      port: 443, path: '/emails', method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(payload)
+      }
+    }, res => {
+      let body = '';
+      res.on('data', c => body += c);
+      res.on('end', () => {
+        if (res.statusCode >= 200 && res.statusCode < 300) resolve(JSON.parse(body));
+        else reject(new Error(`Resend: ${body}`));
+      });
+    });
+    req.on('error', reject);
+    req.write(payload);
+    req.end();
+  });
+}
+
 function getTransporter(cfg) {
-  // Priority 1: Brevo SMTP key (no domain verification needed)
+  // Brevo SMTP
   if (cfg.brevo_smtp_key && cfg.brevo_smtp_user) {
     return nodemailer.createTransport({
-      host:   'smtp-relay.brevo.com',
-      port:   587,
-      secure: false,
-      auth:   { user: cfg.brevo_smtp_user, pass: cfg.brevo_smtp_key }
+      host: 'smtp-relay.brevo.com', port: 587, secure: false,
+      auth: { user: cfg.brevo_smtp_user, pass: cfg.brevo_smtp_key }
     });
   }
-  // Priority 2: Resend API key (needs verified domain for sending to any address)
-  if (cfg.resend_api_key) {
+  // Custom SMTP (non-Resend)
+  if (cfg.smtp_host && cfg.smtp_host !== 'smtp.resend.com' && cfg.smtp_user && cfg.smtp_pass) {
     return nodemailer.createTransport({
-      host:   'smtp.resend.com',
-      port:   465,
-      secure: true,
-      auth:   { user: 'resend', pass: cfg.resend_api_key }
-    });
-  }
-  // Priority 3: Custom SMTP
-  if (cfg.smtp_host && cfg.smtp_user && cfg.smtp_pass) {
-    return nodemailer.createTransport({
-      host:   cfg.smtp_host,
-      port:   parseInt(cfg.smtp_port || '587'),
+      host: cfg.smtp_host,
+      port: parseInt(cfg.smtp_port || '587'),
       secure: cfg.smtp_port === '465',
-      auth:   { user: cfg.smtp_user, pass: cfg.smtp_pass }
+      auth: { user: cfg.smtp_user, pass: cfg.smtp_pass }
     });
   }
   return null;
 }
 
 function getSenderAddress(cfg) {
-  if (cfg.brevo_smtp_key && cfg.brevo_smtp_user) {
-    return `"Oaktree Group Bookings" <${cfg.brevo_smtp_user}>`;
-  }
-  if (cfg.resend_api_key) {
-    return 'Oaktree Group Bookings <onboarding@resend.dev>';
-  }
+  if (cfg.brevo_smtp_key && cfg.brevo_smtp_user) return `"Oaktree Group Bookings" <${cfg.brevo_smtp_user}>`;
+  const apiKey = getResendApiKey(cfg);
+  if (apiKey) return `Oaktree Group Bookings <${cfg.smtp_from || 'onboarding@resend.dev'}>`;
   return `"Oaktree Group Bookings" <${cfg.smtp_from || 'noreply@oaktree.com'}>`;
+}
+
+// ── Unified send function ─────────────────────────────────────
+async function sendEmail(to, subject, html) {
+  const cfg = getConfig();
+  if (cfg.email_notifications_enabled !== 'true') {
+    console.log(`[EMAIL] Disabled — would send to ${to}: ${subject}`);
+    return;
+  }
+  // Try Resend HTTP API first (works on Railway, no port issues)
+  const apiKey = getResendApiKey(cfg);
+  if (apiKey) {
+    const from = cfg.smtp_from && cfg.smtp_from !== 'noreply@oaktree.com'
+      ? `Oaktree Group Bookings <${cfg.smtp_from}>`
+      : 'Oaktree Group Bookings <onboarding@resend.dev>';
+    await sendViaResendApi(apiKey, from, to, subject, html);
+    console.log(`[EMAIL] Sent via Resend API → ${to}`);
+    return;
+  }
+  // Fall back to SMTP (Brevo or custom)
+  const t = getTransporter(cfg);
+  if (!t) { console.log(`[EMAIL] No email service configured.`); return; }
+  await t.sendMail({ from: getSenderAddress(cfg), to, subject, html });
+  console.log(`[EMAIL] Sent via SMTP → ${to}`);
 }
 
 function fmt12(t) {
@@ -78,17 +122,6 @@ function bookingTable(b, bg, border) {
 }
 
 async function sendBookingConfirmation(booking) {
-  const cfg = getConfig();
-  if (cfg.email_notifications_enabled !== 'true') {
-    console.log(`[EMAIL] Notifications disabled. Confirmation skipped for ${booking.employee_email}`);
-    return;
-  }
-  const t = getTransporter(cfg);
-  if (!t) {
-    console.log(`[EMAIL] No email service configured. Go to Admin → Settings → Email to set up Resend (free).`);
-    return;
-  }
-
   const html = `<div style="${baseStyle}">
     <div style="${headerStyle('#1B2A4A')}">
       <h1 style="margin:0;font-size:22px;">Oaktree Group</h1>
@@ -100,28 +133,14 @@ async function sendBookingConfirmation(booking) {
       <p>Your meeting room has been successfully booked. Here are your booking details:</p>
       ${bookingTable(booking, '#f0f7f4', '#2A5C45')}
       <p style="color:#666;font-size:14px;">You will receive a reminder 15 minutes before your meeting starts.</p>
-      <p style="color:#666;font-size:14px;">To cancel or modify this booking, visit <strong>My Bookings</strong> on the Oaktree booking system and use your email address to access your reservations.</p>
-      <p style="${footerStyle}">This is an automated message from the Oaktree Group Meeting Room Booking System. Do not reply to this email.</p>
+      <p style="color:#666;font-size:14px;">To cancel or modify this booking, visit <strong>My Bookings</strong> on the Oaktree booking system.</p>
+      <p style="${footerStyle}">Oaktree Group Meeting Room Booking System</p>
     </div>
   </div>`;
-
-  await t.sendMail({
-    from: getSenderAddress(cfg),
-    to: booking.employee_email,
-    subject: `Booking Confirmed: ${booking.room_name} – ${fmtDate(booking.date)}`,
-    html
-  });
+  await sendEmail(booking.employee_email, `Booking Confirmed: ${booking.room_name} – ${fmtDate(booking.date)}`, html);
 }
 
 async function sendCancellationNotification(booking, reason) {
-  const cfg = getConfig();
-  if (cfg.email_notifications_enabled !== 'true') {
-    console.log(`[EMAIL] Cancellation → ${booking.employee_email} | ${booking.id}`);
-    return;
-  }
-  const t = getTransporter(cfg);
-  if (!t) return;
-
   const html = `<div style="${baseStyle}">
     <div style="${headerStyle('#1B2A4A')}">
       <h1 style="margin:0;font-size:22px;">Oaktree Group</h1>
@@ -133,28 +152,13 @@ async function sendCancellationNotification(booking, reason) {
       <p>Your meeting room booking has been cancelled.</p>
       ${bookingTable(booking, '#fff3f3', '#c0392b')}
       ${reason ? `<p style="color:#666;font-size:14px;"><strong>Reason:</strong> ${reason}</p>` : ''}
-      <p style="color:#666;font-size:14px;">To make a new booking, please visit the Oaktree Meeting Room Booking System.</p>
-      <p style="${footerStyle}">This is an automated message from the Oaktree Group Meeting Room Booking System.</p>
+      <p style="${footerStyle}">Oaktree Group Meeting Room Booking System</p>
     </div>
   </div>`;
-
-  await t.sendMail({
-    from: getSenderAddress(cfg),
-    to: booking.employee_email,
-    subject: `Booking Cancelled: ${booking.room_name || booking.room_id} – ${fmtDate(booking.date)}`,
-    html
-  });
+  await sendEmail(booking.employee_email, `Booking Cancelled: ${booking.room_name || booking.room_id} – ${fmtDate(booking.date)}`, html);
 }
 
 async function sendOverrideNotification(booking, reason) {
-  const cfg = getConfig();
-  if (cfg.email_notifications_enabled !== 'true') {
-    console.log(`[EMAIL] Override → ${booking.employee_email} | ${booking.id} | ${reason}`);
-    return;
-  }
-  const t = getTransporter(cfg);
-  if (!t) return;
-
   const html = `<div style="${baseStyle}">
     <div style="${headerStyle('#1B2A4A')}">
       <h1 style="margin:0;font-size:22px;">Oaktree Group</h1>
@@ -163,21 +167,14 @@ async function sendOverrideNotification(booking, reason) {
     <div style="${bodyStyle}">
       <h2 style="color:#e67e22;margin-top:0;">⚠ Your Booking Has Been Overridden</h2>
       <p>Dear ${booking.employee_name},</p>
-      <p>We regret to inform you that your meeting room booking has been overridden by administration for priority use.</p>
+      <p>Your meeting room booking has been overridden by administration for priority use.</p>
       ${bookingTable(booking, '#fff8f0', '#e67e22')}
       ${reason ? `<div style="background:#fff8f0;border-left:4px solid #e67e22;padding:12px;border-radius:4px;margin-bottom:16px;"><strong>Reason:</strong> ${reason}</div>` : ''}
       <p>Please book an alternative time slot at your earliest convenience.</p>
-      <p style="color:#666;font-size:14px;">We sincerely apologise for any inconvenience caused.</p>
-      <p style="${footerStyle}">This is an automated message from the Oaktree Group Meeting Room Booking System.</p>
+      <p style="${footerStyle}">Oaktree Group Meeting Room Booking System</p>
     </div>
   </div>`;
-
-  await t.sendMail({
-    from: getSenderAddress(cfg),
-    to: booking.employee_email,
-    subject: `IMPORTANT: Your Booking Has Been Overridden – ${booking.room_name || booking.room_id}`,
-    html
-  });
+  await sendEmail(booking.employee_email, `IMPORTANT: Your Booking Has Been Overridden – ${booking.room_name || booking.room_id}`, html);
 }
 
 async function sendReminderEmail(booking) {
@@ -186,8 +183,6 @@ async function sendReminderEmail(booking) {
     console.log(`[EMAIL] Reminder → ${booking.employee_email} | Meeting in 15 min at ${booking.start_time}`);
     return;
   }
-  const t = getTransporter(cfg);
-  if (!t) return;
 
   const html = `<div style="${baseStyle}">
     <div style="${headerStyle('#2A5C45')}">
@@ -236,53 +231,33 @@ async function sendReminderEmails() {
 
 async function sendTestEmail(toAddress) {
   const cfg = getConfig();
-  let isEthereal = false;
-  let previewUrl = null;
+  const apiKey = getResendApiKey(cfg);
 
-  // Use the same transporter logic as all other emails (Resend key takes priority)
-  let transporter = getTransporter(cfg);
-
-  if (!transporter) {
-    // Nothing configured at all — fall back to Ethereal so the user can at least
-    // see a preview and know the email system itself works
-    isEthereal = true;
-    const testAccount = await nodemailer.createTestAccount();
-    transporter = nodemailer.createTransport({
-      host:   'smtp.ethereal.email',
-      port:   587,
-      secure: false,
-      auth:   { user: testAccount.user, pass: testAccount.pass }
-    });
+  // Try Resend HTTP API first
+  if (apiKey) {
+    const from = cfg.smtp_from && cfg.smtp_from !== 'noreply@oaktree.com'
+      ? `Oaktree Group Bookings <${cfg.smtp_from}>`
+      : 'Oaktree Group Bookings <onboarding@resend.dev>';
+    const html = `<div style="${baseStyle}"><div style="${headerStyle('#1B2A4A')}"><h1 style="margin:0;font-size:22px;">Oaktree Group</h1><p style="margin:6px 0 0;opacity:.8;font-size:14px;">Email Test</p></div><div style="${bodyStyle}"><h2 style="color:#2A5C45;margin-top:0;">✓ Email is working!</h2><p>Your email setup is working. Booking confirmations will be sent automatically to all employees.</p><p style="${footerStyle}">Oaktree Group Meeting Room Booking System</p></div></div>`;
+    await sendViaResendApi(apiKey, from, toAddress, 'Test Email – Oaktree Meeting Room Booking', html);
+    return { isEthereal: false, message: `Test email sent to ${toAddress} via Resend ✓` };
   }
 
-  const html = `<div style="${baseStyle}">
-    <div style="${headerStyle('#1B2A4A')}">
-      <h1 style="margin:0;font-size:22px;">Oaktree Group</h1>
-      <p style="margin:6px 0 0;opacity:.8;font-size:14px;">Email Configuration Test</p>
-    </div>
-    <div style="${bodyStyle}">
-      <h2 style="color:#2A5C45;margin-top:0;">✓ Email is working!</h2>
-      <p>This is a test email from the <strong>Oaktree Meeting Room Booking System</strong>.</p>
-      <p>If you received this, your SMTP configuration is working correctly and booking confirmations will be delivered to employees.</p>
-      <p style="${footerStyle}">Oaktree Group Meeting Room Booking System</p>
-    </div>
-  </div>`;
-
-  const info = await transporter.sendMail({
-    from:    isEthereal ? '"Oaktree Group Bookings" <noreply@oaktree.com>' : getSenderAddress(cfg),
-    to:      toAddress,
-    subject: 'Test Email – Oaktree Meeting Room Booking',
-    html
-  });
-
-  if (isEthereal) {
-    previewUrl = nodemailer.getTestMessageUrl(info);
-    console.log(`[EMAIL TEST] Ethereal preview URL: ${previewUrl}`);
-    return { isEthereal: true, previewUrl, message: 'Test sent via Ethereal (preview only). Configure SMTP to send real emails.' };
+  // Try SMTP transporter
+  const transporter = getTransporter(cfg);
+  if (transporter) {
+    const html = `<div style="${baseStyle}"><div style="${headerStyle('#1B2A4A')}"><h1 style="margin:0;font-size:22px;">Oaktree Group</h1></div><div style="${bodyStyle}"><h2 style="color:#2A5C45;margin-top:0;">✓ Email is working!</h2><p>Your email setup is working correctly.</p></div></div>`;
+    await transporter.sendMail({ from: getSenderAddress(cfg), to: toAddress, subject: 'Test Email – Oaktree Meeting Room Booking', html });
+    return { isEthereal: false, message: `Test email sent to ${toAddress} ✓` };
   }
 
-  console.log(`[EMAIL TEST] Sent to ${toAddress} via ${cfg.smtp_host}`);
-  return { isEthereal: false, message: `Test email delivered to ${toAddress}.` };
+  // Ethereal fallback
+  const testAccount = await nodemailer.createTestAccount();
+  const t = nodemailer.createTransport({ host:'smtp.ethereal.email', port:587, secure:false, auth:{ user:testAccount.user, pass:testAccount.pass } });
+  const html = `<div style="${baseStyle}"><div style="${bodyStyle}"><h2>Test email preview</h2><p>Configure Resend API key in Admin → Settings to send real emails.</p></div></div>`;
+  const info = await t.sendMail({ from:'"Oaktree" <noreply@oaktree.com>', to:toAddress, subject:'Test – Oaktree Booking', html });
+  const previewUrl = nodemailer.getTestMessageUrl(info);
+  return { isEthereal: true, previewUrl, message: 'No email service configured. Preview only.' };
 }
 
 module.exports = { sendBookingConfirmation, sendCancellationNotification, sendOverrideNotification, sendReminderEmails, sendTestEmail };
