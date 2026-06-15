@@ -1,6 +1,9 @@
 const nodemailer = require('nodemailer');
 const { getDb } = require('../database/db');
 
+// Use built-in fetch (Node 18+) or fall back to https module
+const _fetch = typeof fetch !== 'undefined' ? fetch : null;
+
 function getConfig() {
   const rows = getDb().prepare('SELECT key, value FROM admin_settings').all();
   return Object.fromEntries(rows.map(r => [r.key, r.value]));
@@ -15,17 +18,36 @@ function getResendApiKey(cfg) {
 }
 
 async function sendViaResendApi(apiKey, fromAddress, to, subject, html) {
-  const res = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({ from: fromAddress, to: [to], subject, html })
+  const payload = JSON.stringify({ from: fromAddress, to: [to], subject, html });
+  const headers = { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' };
+
+  if (_fetch) {
+    // Node 18+ built-in fetch
+    const res = await _fetch('https://api.resend.com/emails', { method:'POST', headers, body: payload });
+    const data = await res.json();
+    if (!res.ok) throw new Error(`Resend: ${JSON.stringify(data)}`);
+    return data;
+  }
+
+  // Fallback: https module for older Node
+  const https = require('https');
+  return new Promise((resolve, reject) => {
+    const req = https.request({
+      hostname: 'api.resend.com', port: 443, path: '/emails', method: 'POST',
+      headers: { ...headers, 'Content-Length': Buffer.byteLength(payload) }
+    }, res => {
+      let body = '';
+      res.on('data', c => body += c);
+      res.on('end', () => {
+        if (res.statusCode >= 200 && res.statusCode < 300) resolve(JSON.parse(body));
+        else reject(new Error(`Resend: ${body}`));
+      });
+    });
+    req.setTimeout(15000, () => { req.destroy(); reject(new Error('Resend timeout')); });
+    req.on('error', reject);
+    req.write(payload);
+    req.end();
   });
-  const data = await res.json();
-  if (!res.ok) throw new Error(`Resend error: ${JSON.stringify(data)}`);
-  return data;
 }
 
 function getTransporter(cfg) {
