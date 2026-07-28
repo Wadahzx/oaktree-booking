@@ -1,17 +1,15 @@
 const nodemailer = require('nodemailer');
-const { getDb } = require('../database/db');
+const { all, run } = require('../database/db');
 
-// Use built-in fetch (Node 18+) or fall back to https module
 const _fetch = typeof fetch !== 'undefined' ? fetch : null;
 
-function getConfig() {
-  const rows = getDb().prepare('SELECT key, value FROM admin_settings').all();
+async function getConfig() {
+  const rows = await all('SELECT key, value FROM admin_settings');
   return Object.fromEntries(rows.map(r => [r.key, r.value]));
 }
 
-// ── Resend HTTP API (works on all hosts — no SMTP port needed) ─
 function getResendApiKey(cfg) {
-  // Check both the dedicated resend_api_key and the smtp_pass (if smtp_user=resend)
+  if (process.env.RESEND_API_KEY) return process.env.RESEND_API_KEY;
   if (cfg.resend_api_key) return cfg.resend_api_key;
   if (cfg.smtp_user === 'resend' && cfg.smtp_pass) return cfg.smtp_pass;
   return null;
@@ -22,14 +20,12 @@ async function sendViaResendApi(apiKey, fromAddress, to, subject, html) {
   const headers = { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' };
 
   if (_fetch) {
-    // Node 18+ built-in fetch
-    const res = await _fetch('https://api.resend.com/emails', { method:'POST', headers, body: payload });
+    const res = await _fetch('https://api.resend.com/emails', { method: 'POST', headers, body: payload });
     const data = await res.json();
     if (!res.ok) throw new Error(`Resend: ${JSON.stringify(data)}`);
     return data;
   }
 
-  // Fallback: https module for older Node
   const https = require('https');
   return new Promise((resolve, reject) => {
     const req = https.request({
@@ -51,14 +47,12 @@ async function sendViaResendApi(apiKey, fromAddress, to, subject, html) {
 }
 
 function getTransporter(cfg) {
-  // Brevo SMTP
   if (cfg.brevo_smtp_key && cfg.brevo_smtp_user) {
     return nodemailer.createTransport({
       host: 'smtp-relay.brevo.com', port: 587, secure: false,
       auth: { user: cfg.brevo_smtp_user, pass: cfg.brevo_smtp_key }
     });
   }
-  // Custom SMTP (non-Resend)
   if (cfg.smtp_host && cfg.smtp_host !== 'smtp.resend.com' && cfg.smtp_user && cfg.smtp_pass) {
     return nodemailer.createTransport({
       host: cfg.smtp_host,
@@ -77,24 +71,27 @@ function getSenderAddress(cfg) {
   return `"Oaktree Group Bookings" <${cfg.smtp_from || 'noreply@oaktree.com'}>`;
 }
 
-// ── Unified send function ─────────────────────────────────────
 async function sendEmail(to, subject, html) {
-  const cfg = getConfig();
-  if (cfg.email_notifications_enabled !== 'true') {
+  const cfg = await getConfig();
+  const apiKey = getResendApiKey(cfg);
+  // Auto-enable if RESEND_API_KEY env var is set, otherwise check DB setting
+  if (!apiKey && cfg.email_notifications_enabled !== 'true') {
     console.log(`[EMAIL] Disabled — would send to ${to}: ${subject}`);
     return;
   }
-  // Try Resend HTTP API first (works on Railway, no port issues)
-  const apiKey = getResendApiKey(cfg);
   if (apiKey) {
-    const from = cfg.smtp_from && cfg.smtp_from !== 'noreply@oaktree.com'
-      ? `Oaktree Group Bookings <${cfg.smtp_from}>`
-      : 'Oaktree Group Bookings <onboarding@resend.dev>';
+    const fromEnv  = process.env.RESEND_FROM || 'fathima@oaktree.sa';
+    const fromDb   = cfg.smtp_from && cfg.smtp_from !== 'noreply@oaktree.com' ? cfg.smtp_from : null;
+    const fromAddr = fromDb || fromEnv;
+    const from = `Oaktree Group Bookings <${fromAddr}>`;
     await sendViaResendApi(apiKey, from, to, subject, html);
     console.log(`[EMAIL] Sent via Resend API → ${to}`);
     return;
   }
-  // Fall back to SMTP (Brevo or custom)
+  if (cfg.email_notifications_enabled !== 'true') {
+    console.log(`[EMAIL] Disabled — would send to ${to}: ${subject}`);
+    return;
+  }
   const t = getTransporter(cfg);
   if (!t) { console.log(`[EMAIL] No email service configured.`); return; }
   await t.sendMail({ from: getSenderAddress(cfg), to, subject, html });
@@ -103,19 +100,18 @@ async function sendEmail(to, subject, html) {
 
 function fmt12(t) {
   const [h, m] = t.split(':').map(Number);
-  return `${h % 12 || 12}:${String(m).padStart(2,'0')} ${h >= 12 ? 'PM' : 'AM'}`;
+  return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`;
 }
-
 function fmtDate(d) {
-  return new Date(d + 'T12:00:00').toLocaleDateString('en-GB', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+  return new Date(d + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 }
 
-const baseStyle = `font-family:'Segoe UI',Arial,sans-serif;max-width:600px;margin:0 auto;background:#f4f4f6;padding:20px;`;
+const baseStyle  = `font-family:'Segoe UI',Arial,sans-serif;max-width:600px;margin:0 auto;background:#f4f4f6;padding:20px;`;
 const headerStyle = (bg) => `background:${bg};color:white;padding:30px;border-radius:8px 8px 0 0;text-align:center;`;
-const bodyStyle = `background:#fff;padding:32px;border-radius:0 0 8px 8px;border:1px solid #e0e0e0;border-top:none;`;
+const bodyStyle  = `background:#fff;padding:32px;border-radius:0 0 8px 8px;border:1px solid #e0e0e0;border-top:none;`;
 const tableStyle = `width:100%;border-collapse:collapse;`;
-const tdLabel = `padding:8px 0;color:#666;width:38%;font-size:14px;`;
-const tdValue = `padding:8px 0;font-weight:600;color:#1B2A4A;font-size:14px;`;
+const tdLabel    = `padding:8px 0;color:#666;width:38%;font-size:14px;`;
+const tdValue    = `padding:8px 0;font-weight:600;color:#1B2A4A;font-size:14px;`;
 const footerStyle = `color:#aaa;font-size:12px;text-align:center;margin-top:20px;`;
 
 function bookingTable(b, bg, border) {
@@ -138,7 +134,7 @@ async function sendBookingConfirmation(booking) {
       <p style="margin:6px 0 0;opacity:.8;font-size:14px;">Meeting Room Booking Confirmation</p>
     </div>
     <div style="${bodyStyle}">
-      <h2 style="color:#2A5C45;margin-top:0;">✓ Booking Confirmed</h2>
+      <h2 style="color:#2A5C45;margin-top:0;">Booking Confirmed</h2>
       <p>Dear ${booking.employee_name},</p>
       <p>Your meeting room has been successfully booked. Here are your booking details:</p>
       ${bookingTable(booking, '#f0f7f4', '#2A5C45')}
@@ -175,7 +171,7 @@ async function sendOverrideNotification(booking, reason) {
       <p style="margin:6px 0 0;opacity:.8;font-size:14px;">Important: Booking Override Notice</p>
     </div>
     <div style="${bodyStyle}">
-      <h2 style="color:#e67e22;margin-top:0;">⚠ Your Booking Has Been Overridden</h2>
+      <h2 style="color:#e67e22;margin-top:0;">Your Booking Has Been Overridden</h2>
       <p>Dear ${booking.employee_name},</p>
       <p>Your meeting room booking has been overridden by administration for priority use.</p>
       ${bookingTable(booking, '#fff8f0', '#e67e22')}
@@ -188,19 +184,13 @@ async function sendOverrideNotification(booking, reason) {
 }
 
 async function sendReminderEmail(booking) {
-  const cfg = getConfig();
-  if (cfg.email_notifications_enabled !== 'true') {
-    console.log(`[EMAIL] Reminder → ${booking.employee_email} | Meeting in 15 min at ${booking.start_time}`);
-    return;
-  }
-
   const html = `<div style="${baseStyle}">
     <div style="${headerStyle('#2A5C45')}">
       <h1 style="margin:0;font-size:22px;">Oaktree Group</h1>
       <p style="margin:6px 0 0;opacity:.8;font-size:14px;">Meeting Reminder – 15 Minutes</p>
     </div>
     <div style="${bodyStyle}">
-      <h2 style="color:#2A5C45;margin-top:0;">⏰ Your Meeting Starts in 15 Minutes</h2>
+      <h2 style="color:#2A5C45;margin-top:0;">Your Meeting Starts in 15 Minutes</h2>
       <p>Dear ${booking.employee_name},</p>
       <p>This is a friendly reminder that your meeting room booking starts shortly.</p>
       <div style="background:#f0f7f4;border-left:4px solid #2A5C45;padding:16px;margin:20px 0;border-radius:4px;">
@@ -213,61 +203,51 @@ async function sendReminderEmail(booking) {
       <p style="${footerStyle}">This is an automated reminder from the Oaktree Group Meeting Room Booking System.</p>
     </div>
   </div>`;
-
-  await t.sendMail({
-    from: getSenderAddress(cfg),
-    to: booking.employee_email,
-    subject: `Reminder: ${booking.room_name} – Meeting in 15 Minutes`,
-    html
-  });
+  await sendEmail(booking.employee_email, `Reminder: ${booking.room_name} – Meeting in 15 Minutes`, html);
 }
 
 async function sendReminderEmails() {
-  const db = getDb();
+  const tz = 'Asia/Riyadh';
   const in15 = new Date(Date.now() + 15 * 60 * 1000);
-  const dateStr = in15.toISOString().split('T')[0];
-  const timeStr = `${String(in15.getHours()).padStart(2,'0')}:${String(in15.getMinutes()).padStart(2,'0')}`;
+  const dateStr = in15.toLocaleDateString('en-CA', { timeZone: tz });
+  const timeStr = in15.toLocaleTimeString('en-GB', { timeZone: tz, hour: '2-digit', minute: '2-digit', hour12: false });
 
-  const bookings = db.prepare(`
+  const bookings = await all(`
     SELECT b.*, r.name as room_name FROM bookings b JOIN rooms r ON b.room_id=r.id
     WHERE b.date=? AND b.start_time=? AND b.status='confirmed' AND b.reminder_sent=0
-  `).all(dateStr, timeStr);
+  `, [dateStr, timeStr]);
 
   for (const b of bookings) {
     await sendReminderEmail(b);
-    db.prepare('UPDATE bookings SET reminder_sent=1 WHERE id=?').run(b.id);
+    await run('UPDATE bookings SET reminder_sent=1 WHERE id=?', [b.id]);
   }
 }
 
 async function sendTestEmail(toAddress) {
-  const cfg = getConfig();
+  const cfg = await getConfig();
   const apiKey = getResendApiKey(cfg);
 
-  // Try Resend HTTP API first
   if (apiKey) {
     const from = cfg.smtp_from && cfg.smtp_from !== 'noreply@oaktree.com'
       ? `Oaktree Group Bookings <${cfg.smtp_from}>`
       : 'Oaktree Group Bookings <onboarding@resend.dev>';
-    const html = `<div style="${baseStyle}"><div style="${headerStyle('#1B2A4A')}"><h1 style="margin:0;font-size:22px;">Oaktree Group</h1><p style="margin:6px 0 0;opacity:.8;font-size:14px;">Email Test</p></div><div style="${bodyStyle}"><h2 style="color:#2A5C45;margin-top:0;">✓ Email is working!</h2><p>Your email setup is working. Booking confirmations will be sent automatically to all employees.</p><p style="${footerStyle}">Oaktree Group Meeting Room Booking System</p></div></div>`;
+    const html = `<div style="${baseStyle}"><div style="${headerStyle('#1B2A4A')}"><h1 style="margin:0;font-size:22px;">Oaktree Group</h1><p style="margin:6px 0 0;opacity:.8;font-size:14px;">Email Test</p></div><div style="${bodyStyle}"><h2 style="color:#2A5C45;margin-top:0;">Email is working!</h2><p>Your email setup is working. Booking confirmations will be sent automatically.</p><p style="${footerStyle}">Oaktree Group Meeting Room Booking System</p></div></div>`;
     await sendViaResendApi(apiKey, from, toAddress, 'Test Email – Oaktree Meeting Room Booking', html);
-    return { isEthereal: false, message: `Test email sent to ${toAddress} via Resend ✓` };
+    return { isEthereal: false, message: `Test email sent to ${toAddress} via Resend` };
   }
 
-  // Try SMTP transporter
   const transporter = getTransporter(cfg);
   if (transporter) {
-    const html = `<div style="${baseStyle}"><div style="${headerStyle('#1B2A4A')}"><h1 style="margin:0;font-size:22px;">Oaktree Group</h1></div><div style="${bodyStyle}"><h2 style="color:#2A5C45;margin-top:0;">✓ Email is working!</h2><p>Your email setup is working correctly.</p></div></div>`;
+    const html = `<div style="${baseStyle}"><div style="${headerStyle('#1B2A4A')}"><h1 style="margin:0;font-size:22px;">Oaktree Group</h1></div><div style="${bodyStyle}"><h2 style="color:#2A5C45;margin-top:0;">Email is working!</h2><p>Your email setup is working correctly.</p></div></div>`;
     await transporter.sendMail({ from: getSenderAddress(cfg), to: toAddress, subject: 'Test Email – Oaktree Meeting Room Booking', html });
-    return { isEthereal: false, message: `Test email sent to ${toAddress} ✓` };
+    return { isEthereal: false, message: `Test email sent to ${toAddress}` };
   }
 
-  // Ethereal fallback
   const testAccount = await nodemailer.createTestAccount();
-  const t = nodemailer.createTransport({ host:'smtp.ethereal.email', port:587, secure:false, auth:{ user:testAccount.user, pass:testAccount.pass } });
-  const html = `<div style="${baseStyle}"><div style="${bodyStyle}"><h2>Test email preview</h2><p>Configure Resend API key in Admin → Settings to send real emails.</p></div></div>`;
-  const info = await t.sendMail({ from:'"Oaktree" <noreply@oaktree.com>', to:toAddress, subject:'Test – Oaktree Booking', html });
-  const previewUrl = nodemailer.getTestMessageUrl(info);
-  return { isEthereal: true, previewUrl, message: 'No email service configured. Preview only.' };
+  const t = nodemailer.createTransport({ host: 'smtp.ethereal.email', port: 587, secure: false, auth: { user: testAccount.user, pass: testAccount.pass } });
+  const html = `<div style="${baseStyle}"><div style="${bodyStyle}"><h2>Test email preview</h2><p>Configure Resend API key in Admin Settings to send real emails.</p></div></div>`;
+  const info = await t.sendMail({ from: '"Oaktree" <noreply@oaktree.com>', to: toAddress, subject: 'Test – Oaktree Booking', html });
+  return { isEthereal: true, previewUrl: nodemailer.getTestMessageUrl(info), message: 'No email service configured. Preview only.' };
 }
 
 module.exports = { sendBookingConfirmation, sendCancellationNotification, sendOverrideNotification, sendReminderEmails, sendTestEmail };
