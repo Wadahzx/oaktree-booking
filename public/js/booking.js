@@ -12,8 +12,8 @@ let knownPeople      = [];   // [{ name, email }] seen in earlier bookings
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const FALLBACK_ROOMS = {
-  oak_room:  { name: 'قاعة الاجتماعات · Boardroom', capacity: 12 },
-  tree_room: { name: 'غرفة الاجتماعات · Meeting room', capacity: 4 }
+  oak_room:  { name: 'قاعة الاجتماعات', capacity: 12 },
+  tree_room: { name: 'غرفة الاجتماعات', capacity: 4 }
 };
 
 function esc(str) {
@@ -24,6 +24,7 @@ function roomCapacity(id) { return (roomsById[id] || FALLBACK_ROOMS[id] || {}).c
 
 // ── INIT ──────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
+  wireCategoryOther('meetingCategory', 'categoryOther');
   setMinDateToday('bookingDate');
 
   // Room selector
@@ -462,7 +463,7 @@ async function handleSubmit(e) {
       start_time:selectedTime,
       duration:  selectedDuration,
       purpose:   document.getElementById('meetingPurpose').value.trim(),
-      category:  document.getElementById('meetingCategory').value,
+      category:  categoryValue('meetingCategory', 'categoryOther'),
       notes:     document.getElementById('meetingNotes').value.trim(),
       attendees
     };
@@ -497,6 +498,7 @@ async function handleSubmit(e) {
 
 function resetForm() {
   document.getElementById('bookingForm').reset();
+  const co = document.getElementById('categoryOther'); if (co) { co.style.display = 'none'; co.value = ''; }
   selectedRoom = null;
   selectedDuration = null;
   selectedTime = null;

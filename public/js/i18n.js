@@ -9,7 +9,7 @@ var TRANSLATIONS = {
     'nav.darkmode':'Dark Mode','nav.lightmode':'Light Mode','nav.lang':'العربية',
     'brand.system':'Meeting Room Booking','brand.adminSystem':'Admin Panel',
     'common.internal':'Internal Tool',
-    'common.oakroom':'قاعة الاجتماعات · Boardroom','common.treeroom':'غرفة الاجتماعات · Meeting room','common.allrooms':'All Rooms',
+    'common.oakroom':'Boardroom','common.treeroom':'Meeting room','common.allrooms':'All Rooms',
     'common.book':'+ Book','common.newbooking':'+ New Booking',
     'common.save':'Save Changes','common.cancel':'Cancel','common.close':'Close',
     'common.edit':'Edit','common.clear':'Clear','common.refresh':'Refresh',
@@ -20,7 +20,7 @@ var TRANSLATIONS = {
     'cat.workshop':'Workshop','cat.other':'Other',
     'dur.30':'30 min','dur.60':'1 hour','dur.90':'1.5 hours','dur.120':'2 hours',
     'dash.title':'Dashboard',
-    'dash.heading':'Good morning — Oaktree Group HQ',
+    'dash.heading':'Good morning, Oaktree Group HQ',
     'dash.subheading':'Meeting room availability and today\'s schedule overview',
     'dash.bookbtn':'Book a Room',
     'dash.today':"Today's Bookings",'dash.todaysub':'meetings scheduled today',
@@ -76,8 +76,8 @@ var TRANSLATIONS = {
     'brand.system':'حجز غرف الاجتماعات',
     'brand.adminSystem':'لوحة الإدارة',
     'common.internal':'أداة داخلية',
-    'common.oakroom':'قاعة الاجتماعات · Boardroom',
-    'common.treeroom':'غرفة الاجتماعات · Meeting room',
+    'common.oakroom':'قاعة الاجتماعات',
+    'common.treeroom':'غرفة الاجتماعات',
     'common.allrooms':'جميع الغرف',
     'common.book':'+ احجز',
     'common.newbooking':'+ حجز جديد',
@@ -180,7 +180,7 @@ var TRANSLATIONS = {
 };
 
 function currentLang() {
-  return 'ar'; // Arabic-only
+  try { return localStorage.getItem('oaktreeLang') === 'en' ? 'en' : 'ar'; } catch (e) { return 'ar'; }
 }
 
 function t(key) {
@@ -212,8 +212,8 @@ function applyTranslations() {
 }
 
 function setLanguage(lang) {
-  localStorage.setItem('oaktreeLang', lang);
-  applyTranslations();
+  try { localStorage.setItem('oaktreeLang', lang); } catch (e) {}
+  location.reload(); // simplest way to re-render everything in the new language
 }
 
 function toggleLanguage() {

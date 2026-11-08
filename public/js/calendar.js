@@ -74,7 +74,7 @@ function updateTitle() {
   } else {
     const start = getWeekStart(currentDate);
     const end   = new Date(start); end.setDate(end.getDate() + 6);
-    title.textContent = `${start.toLocaleDateString(AR_LOCALE,{day:'numeric',month:'short'})} إلى ${end.toLocaleDateString(AR_LOCALE,{day:'numeric',month:'short',year:'numeric'})}`;
+    title.textContent = `${start.toLocaleDateString(AR_LOCALE,{day:'numeric',month:'short'})} ${currentLang() === 'en' ? 'to' : 'إلى'} ${end.toLocaleDateString(AR_LOCALE,{day:'numeric',month:'short',year:'numeric'})}`;
   }
 }
 
@@ -134,8 +134,8 @@ function renderDayView(container) {
 
   const header = `<div style="display:grid;grid-template-columns:72px 1fr 1fr;background:var(--beige);border-bottom:2px solid var(--grey-border);">
     <div style="padding:10px 12px;font-size:11px;font-weight:600;color:var(--text-muted);border-right:1px solid var(--grey-border);">الوقت</div>
-    <div style="padding:10px 12px;font-size:12px;font-weight:700;color:var(--navy);border-right:1px solid var(--grey-border);">قاعة الاجتماعات · Boardroom</div>
-    <div style="padding:10px 12px;font-size:12px;font-weight:700;color:var(--green);">غرفة الاجتماعات · Meeting room</div>
+    <div style="padding:10px 12px;font-size:12px;font-weight:700;color:var(--navy);border-right:1px solid var(--grey-border);">قاعة الاجتماعات</div>
+    <div style="padding:10px 12px;font-size:12px;font-weight:700;color:var(--green);">غرفة الاجتماعات</div>
   </div>`;
 
   const rows = slots.map(time => {
@@ -205,7 +205,7 @@ function renderCellContent(events, isPast) {
       return `<div class="cal-event blocked" title="${escHtml(ev.reason)}" onclick="event.stopPropagation();showBlockDetail('${escHtml(ev.reason)}')">🔒 ${escHtml(ev.reason)}</div>`;
     }
     const cls = ev.room_id === 'oak_room' ? 'oak-room' : 'tree-room';
-    return `<div class="cal-event ${cls}" title="${escHtml(ev.purpose)}" onclick="event.stopPropagation();showBookingDetail('${ev.id}')">${escHtml(ev.purpose)}<br><span style="font-size:10px;opacity:.8;">${escHtml(ev.employee_name)} · ${ev.room_name||''}</span></div>`;
+    return `<div class="cal-event ${cls}" title="${escHtml(ev.purpose)}" onclick="event.stopPropagation();showBookingDetail('${ev.id}')">${escHtml(ev.purpose)}<br><span style="font-size:10px;opacity:.8;">${escHtml(ev.employee_name)}، ${ev.room_name||''}</span></div>`;
   }).join('');
 }
 

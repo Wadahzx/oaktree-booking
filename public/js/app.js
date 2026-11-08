@@ -110,10 +110,10 @@ function updateCurrentDate() {
 }
 
 // ── DATE / TIME HELPERS ───────────────────────────────────────
-const AR_LOCALE = 'ar-SA-u-nu-latn-ca-gregory'; // Arabic month/day names, Latin digits
+const AR_LOCALE = currentLang() === 'en' ? 'en-GB' : 'ar-SA-u-nu-latn-ca-gregory'; // Arabic month/day names, Latin digits
 
 function fmtRange(a, b) {
-  return `${fmt12(a)} إلى ${fmt12(b)}`;
+  return `${fmt12(a)} ${currentLang() === 'en' ? 'to' : 'إلى'} ${fmt12(b)}`;
 }
 
 function todayStr() {
@@ -133,7 +133,7 @@ function fmtDateLong(dateStr) {
 function fmt12(t) {
   if (!t) return '';
   const [h, m] = t.split(':').map(Number);
-  return `${h % 12 || 12}:${String(m).padStart(2,'0')} ${h >= 12 ? 'م' : 'ص'}`;
+  return `${h % 12 || 12}:${String(m).padStart(2,'0')} ${currentLang() === 'en' ? (h >= 12 ? 'PM' : 'AM') : (h >= 12 ? 'م' : 'ص')}`;
 }
 
 function fmtDuration(mins) {
@@ -160,7 +160,33 @@ function categoryLabel(cat) {
     meeting:'cat.meeting', interview:'cat.interview', training:'cat.training',
     client:'cat.client', presentation:'cat.presentation', workshop:'cat.workshop', other:'cat.other'
   };
+  if (cat && cat.indexOf('other:') === 0) return cat.slice(6) || T('cat.other');
   return map[cat] ? T(map[cat]) : (cat || 'اجتماع');
+}
+
+// "Other" meeting type: show a text box and store it as "other:<text>"
+function wireCategoryOther(selectId, inputId) {
+  const sel = document.getElementById(selectId), inp = document.getElementById(inputId);
+  if (!sel || !inp) return;
+  const sync = () => {
+    const show = sel.value === 'other';
+    inp.style.display = show ? '' : 'none';
+    if (show) inp.focus(); else inp.value = '';
+  };
+  sel.addEventListener('change', sync);
+  sel.__syncOther = () => { inp.style.display = sel.value === 'other' ? '' : 'none'; };
+}
+function categoryValue(selectId, inputId) {
+  const v = document.getElementById(selectId).value;
+  if (v !== 'other') return v;
+  const txt = (document.getElementById(inputId).value || '').trim();
+  return txt ? 'other:' + txt : 'other';
+}
+function setCategoryValue(selectId, inputId, cat) {
+  const sel = document.getElementById(selectId), inp = document.getElementById(inputId);
+  if (cat && cat.indexOf('other:') === 0) { sel.value = 'other'; inp.value = cat.slice(6); }
+  else { sel.value = cat || 'meeting'; if (sel.value !== (cat || 'meeting')) { sel.value = 'other'; inp.value = cat; } else inp.value = ''; }
+  inp.style.display = sel.value === 'other' ? '' : 'none';
 }
 
 // ── MODAL HELPERS ─────────────────────────────────────────────

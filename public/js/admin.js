@@ -250,8 +250,8 @@ async function loadBlocks() {
       ${blocks.map(bl => `
         <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--beige);border:1px solid var(--beige-dark);border-radius:var(--radius-sm);">
           <div>
-            <div style="font-size:13px;font-weight:600;color:var(--text-primary);">${bl.room_name} · ${fmtDate(bl.date)}</div>
-            <div style="font-size:12px;color:var(--text-muted);">${fmtRange(bl.start_time, bl.end_time)} · ${escHtml(bl.reason)}</div>
+            <div style="font-size:13px;font-weight:600;color:var(--text-primary);">${bl.room_name}، ${fmtDate(bl.date)}</div>
+            <div style="font-size:12px;color:var(--text-muted);">${fmtRange(bl.start_time, bl.end_time)}، ${escHtml(bl.reason)}</div>
           </div>
           <button class="btn btn-danger btn-sm" onclick="removeBlock('${bl.id}')">إزالة</button>
         </div>`).join('')}

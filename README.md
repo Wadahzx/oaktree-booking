@@ -52,7 +52,7 @@ SMTP_FROM=noreply@oaktree.com
 ---
 
 ## Features
-- **Two meeting rooms**: Boardroom (12 people) · Meeting room (4 people)
+- **Two meeting rooms**: Boardroom (12 people), Meeting room (4 people)
 - **No login required** for employees — just enter name + email when booking
 - **Admin panel** with full management controls
 - **Email notifications**: booking confirmation, cancellation, override alerts, 15-min reminders

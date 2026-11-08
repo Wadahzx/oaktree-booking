@@ -100,15 +100,15 @@ async function initializeDatabase() {
   const { rows: rc } = await p.query('SELECT COUNT(*) as c FROM rooms');
   if (parseInt(rc[0].c) === 0) {
     await run('INSERT INTO rooms (id,name,description,capacity) VALUES (?,?,?,?)',
-      ['oak_room', 'قاعة الاجتماعات · Boardroom', 'قاعة الاجتماع الرئيسية، تتسع لـ 12 شخصاً', 12]);
+      ['oak_room', 'قاعة الاجتماعات', 'قاعة رئيسية تتسع لـ 12 شخصاً', 12]);
     await run('INSERT INTO rooms (id,name,description,capacity) VALUES (?,?,?,?)',
-      ['tree_room', 'غرفة الاجتماعات · Meeting room', 'غرفة اجتماعات صغيرة، تتسع لـ 4 أشخاص', 4]);
+      ['tree_room', 'غرفة الاجتماعات', 'غرفة اجتماعات صغيرة تتسع لـ 4 أشخاص', 4]);
   } else {
     // one-time rename of the original English defaults (admin edits are left alone)
-    await run("UPDATE rooms SET name=?, description=?, capacity=? WHERE id='oak_room' AND name IN ('Oak Room','غرفة الاجتماعات · Boardroom')",
-      ['قاعة الاجتماعات · Boardroom', 'قاعة الاجتماع الرئيسية، تتسع لـ 12 شخصاً', 12]);
-    await run("UPDATE rooms SET name=?, description=?, capacity=? WHERE id='tree_room' AND name IN ('Tree Room','غرفة الاجتماعات الصغيرة · Meeting room')",
-      ['غرفة الاجتماعات · Meeting room', 'غرفة اجتماعات صغيرة، تتسع لـ 4 أشخاص', 4]);
+    await run("UPDATE rooms SET name=?, description=?, capacity=? WHERE id='oak_room' AND (name IN ('Oak Room','قاعة الاجتماعات · Boardroom','غرفة الاجتماعات · Boardroom') OR description LIKE '%·%' OR description LIKE '%سبورة%' OR description LIKE '%whiteboard%')",
+      ['قاعة الاجتماعات', 'قاعة رئيسية تتسع لـ 12 شخصاً', 12]);
+    await run("UPDATE rooms SET name=?, description=?, capacity=? WHERE id='tree_room' AND (name IN ('Tree Room','غرفة الاجتماعات · Meeting room','غرفة الاجتماعات الصغيرة · Meeting room') OR description LIKE '%·%')",
+      ['غرفة الاجتماعات', 'غرفة اجتماعات صغيرة تتسع لـ 4 أشخاص', 4]);
   }
 
   const { rows: sc } = await p.query('SELECT COUNT(*) as c FROM admin_settings');
