@@ -10,6 +10,7 @@ let editSelectedDur  = null;
 
 // ── INIT ──────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
+  wireCategoryOther('editCategory', 'editCategoryOther');
   // Pre-fill email from URL param if present
   const params = new URLSearchParams(window.location.search);
   if (params.get('email')) {
@@ -124,7 +125,7 @@ function buildBookingCard(b, canEdit) {
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;">
         <div>
           <div style="font-size:16px;font-weight:700;color:var(--text-primary);margin-bottom:3px;">${escHtml(b.purpose)}</div>
-          <div style="font-size:13px;color:var(--text-secondary);margin-bottom:8px;">${b.room_name} · ${categoryLabel(b.category)}</div>
+          <div style="font-size:13px;color:var(--text-secondary);margin-bottom:8px;">${b.room_name}، ${categoryLabel(b.category)}</div>
         </div>
         <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
           ${isActive ? '<span class="badge badge-in-progress">جارٍ الآن</span>' : statusBadge(b.status)}
@@ -197,7 +198,7 @@ async function openEditModal(id) {
     document.getElementById('editDate').value      = b.date;
     document.getElementById('editDate').min        = todayStr();
     document.getElementById('editPurpose').value   = b.purpose;
-    document.getElementById('editCategory').value  = b.category || 'meeting';
+    setCategoryValue('editCategory', 'editCategoryOther', b.category);
     document.getElementById('editNotes').value     = b.notes || '';
     document.getElementById('editDuration').value  = b.duration;
 
@@ -263,7 +264,7 @@ async function saveEdit() {
       start_time: editSelectedTime || editBookingData.start_time,
       duration:  editSelectedDur || editBookingData.duration,
       purpose:   document.getElementById('editPurpose').value.trim(),
-      category:  document.getElementById('editCategory').value,
+      category:  categoryValue('editCategory', 'editCategoryOther'),
       notes:     document.getElementById('editNotes').value.trim()
     });
     closeModal('editModal');

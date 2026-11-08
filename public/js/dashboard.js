@@ -2,7 +2,7 @@
    OAKTREE — Dashboard (dashboard.js)
    ============================================================ */
 
-const ROOM_NAMES = { oak_room: 'قاعة الاجتماعات · Boardroom', tree_room: 'غرفة الاجتماعات · Meeting room' };
+const ROOM_NAMES = { oak_room: 'قاعة الاجتماعات', tree_room: 'غرفة الاجتماعات' };
 
 async function loadDashboard() {
   const today = todayStr();
@@ -111,7 +111,7 @@ async function loadRoomStatus(today) {
       } else if (isBooked) {
         statusClass = 'occupied';
         badgeHtml   = '<span class="badge badge-in-progress">قيد الاستخدام</span>';
-        statusInfo  = current.booking ? `${current.booking.purpose} · حتى ${fmt12(current.booking.end_time || '')}` : 'قيد الاستخدام';
+        statusInfo  = current.booking ? `${current.booking.purpose}، حتى ${fmt12(current.booking.end_time || '')}` : 'قيد الاستخدام';
       }
 
       const totalSlots     = slots.filter(s => s.status !== 'past').length;
@@ -165,7 +165,7 @@ async function loadTodaySchedule(today) {
         </div>
         <div style="flex:1;min-width:0;">
           <div style="font-size:13.5px;font-weight:600;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(b.purpose)}</div>
-          <div style="font-size:12px;color:var(--text-muted);">${b.room_name} · ${escHtml(b.employee_name)}</div>
+          <div style="font-size:12px;color:var(--text-muted);">${b.room_name}، ${escHtml(b.employee_name)}</div>
         </div>
         ${isNow ? '<span class="badge badge-in-progress" style="flex-shrink:0;">الآن</span>' : ''}
       </div>`;

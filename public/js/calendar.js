@@ -1,45 +1,59 @@
 /* ============================================================
    OAKTREE — Calendar (calendar.js)
+   Timeline day view (one column per room) and week view.
+   The room filter is built from the rooms API, so any room works.
    ============================================================ */
 
-let currentDate   = new Date();
-let currentView   = 'day';
-let roomFilter    = 'all';
-let allBookings   = [];
-let allBlocks     = [];
+let currentDate = new Date();
+let currentView = 'day';
+let roomFilter  = 'all';
+let rooms       = [];
+let allBookings = [];
+let allBlocks   = [];
 
-const DAYS  = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
-const DAYSL = ['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
+const HOUR_PX    = 64;   // height of one hour in the grid
+const DEF_START  = 8;    // default first hour shown
+const DEF_END    = 18;   // default last hour shown
+const ROOM_COLORS = [
+  { fg: '#1C2D3C', bg: 'rgba(28,45,60,.11)',   bd: '#1C2D3C' },
+  { fg: '#4C6B52', bg: 'rgba(76,107,82,.13)',  bd: '#4C6B52' },
+  { fg: '#8A6A1E', bg: 'rgba(185,150,60,.16)', bd: '#B9963C' },
+  { fg: '#7A3E3E', bg: 'rgba(160,80,80,.12)',  bd: '#A05050' },
+  { fg: '#2F6277', bg: 'rgba(47,98,119,.13)',  bd: '#2F6277' },
+  { fg: '#5B4B7A', bg: 'rgba(91,75,122,.13)',  bd: '#5B4B7A' }
+];
+
+function roomColor(id) {
+  const i = rooms.findIndex(r => r.id === id);
+  return ROOM_COLORS[(i < 0 ? 0 : i) % ROOM_COLORS.length];
+}
+function roomName(id) { const r = rooms.find(x => x.id === id); return r ? r.name : ''; }
+function toMin(t) { const [h, m] = String(t).split(':').map(Number); return h * 60 + (m || 0); }
+function pad2(n) { return String(n).padStart(2, '0'); }
+function hhmm(mins) { return pad2(Math.floor(mins / 60)) + ':' + pad2(mins % 60); }
 
 // ── INIT ──────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
-  // Nav buttons
+document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('prevBtn').addEventListener('click', () => navigate(-1));
   document.getElementById('nextBtn').addEventListener('click', () => navigate(1));
   document.getElementById('todayBtn').addEventListener('click', () => { currentDate = new Date(); render(); });
-
-  // View toggle
   document.getElementById('btnDay').addEventListener('click',  () => setView('day'));
   document.getElementById('btnWeek').addEventListener('click', () => setView('week'));
-
-  // Room filter chips
-  document.getElementById('filterAll').addEventListener('click',  () => setFilter('all'));
-  document.getElementById('filterOak').addEventListener('click',  () => setFilter('oak_room'));
-  document.getElementById('filterTree').addEventListener('click', () => setFilter('tree_room'));
-
-  // Modal close
   document.getElementById('modalClose').addEventListener('click', () => closeModal('bookingModal'));
   document.getElementById('modalCloseBtn').addEventListener('click', () => closeModal('bookingModal'));
 
+  try {
+    const { data } = await GET('/rooms');
+    rooms = (data || []).slice().sort((a, b) => (b.capacity || 0) - (a.capacity || 0));
+  } catch (e) { rooms = []; }
+  const q = new URLSearchParams(location.search).get('room');
+  if (q && rooms.some(r => r.id === q)) roomFilter = q;
+  renderFilter();
   render();
 });
 
 function navigate(dir) {
-  if (currentView === 'day') {
-    currentDate.setDate(currentDate.getDate() + dir);
-  } else {
-    currentDate.setDate(currentDate.getDate() + dir * 7);
-  }
+  currentDate.setDate(currentDate.getDate() + (currentView === 'day' ? dir : dir * 7));
   render();
 }
 
@@ -52,17 +66,28 @@ function setView(v) {
 
 function setFilter(f) {
   roomFilter = f;
-  ['all','oak_room','tree_room'].forEach(r => {
-    const el = document.getElementById(`filter${r==='all'?'All':r==='oak_room'?'Oak':'Tree'}`);
-    el.className = 'room-chip';
-    if (r === f) el.classList.add(r === 'all' ? 'active-all' : r === 'oak_room' ? 'active-oak' : 'active-tree');
-  });
+  renderFilter();
   renderGrid();
+}
+
+function renderFilter() {
+  const box = document.getElementById('roomFilter');
+  const chips = [`<button type="button" class="tl-chip ${roomFilter === 'all' ? 'active' : ''}" onclick="setFilter('all')">جميع الغرف</button>`]
+    .concat(rooms.map(r => {
+      const c = roomColor(r.id);
+      return `<button type="button" class="tl-chip ${roomFilter === r.id ? 'active' : ''}" style="--chip:${c.bd}" onclick="setFilter('${r.id}')"><span class="tl-dot" style="background:${c.bd}"></span>${escHtml(r.name)}</button>`;
+    }));
+  box.innerHTML = chips.join('');
+  const lg = document.getElementById('calLegend');
+  if (lg) lg.innerHTML = rooms.map(r => `<span class="tl-key"><span class="tl-dot" style="background:${roomColor(r.id).bd}"></span>${escHtml(r.name)}</span>`).join('')
+    + '<span class="tl-key"><span class="tl-dot tl-dot-block"></span>محظور</span>';
 }
 
 // ── RENDER ────────────────────────────────────────────────────
 async function render() {
   updateTitle();
+  const c = document.getElementById('calendarContainer');
+  if (!allBookings.length && !allBlocks.length) c.innerHTML = '<div class="empty-state" style="padding:60px 0"><div class="spinner spinner-dark"></div></div>';
   await fetchData();
   renderGrid();
 }
@@ -74,7 +99,7 @@ function updateTitle() {
   } else {
     const start = getWeekStart(currentDate);
     const end   = new Date(start); end.setDate(end.getDate() + 6);
-    title.textContent = `${start.toLocaleDateString(AR_LOCALE,{day:'numeric',month:'short'})} إلى ${end.toLocaleDateString(AR_LOCALE,{day:'numeric',month:'short',year:'numeric'})}`;
+    title.textContent = `${start.toLocaleDateString(AR_LOCALE,{day:'numeric',month:'short'})} ${currentLang() === 'en' ? 'to' : 'إلى'} ${end.toLocaleDateString(AR_LOCALE,{day:'numeric',month:'short',year:'numeric'})}`;
   }
 }
 
@@ -83,12 +108,9 @@ async function fetchData() {
     await fetchDay(currentDate);
   } else {
     const start = getWeekStart(currentDate);
-    const promises = [];
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(start); d.setDate(d.getDate() + i);
-      promises.push(fetchDay(d));
-    }
-    await Promise.all(promises);
+    const jobs = [];
+    for (let i = 0; i < 7; i++) { const d = new Date(start); d.setDate(d.getDate() + i); jobs.push(fetchDay(d)); }
+    await Promise.all(jobs);
   }
 }
 
@@ -99,155 +121,175 @@ async function fetchDay(date) {
       GET('/bookings', { date: ds }),
       GET('/admin/blocks', { date: ds }).catch(() => ({ data: [] }))
     ]);
-    const existing = allBookings.filter(b => b.date !== ds);
-    allBookings = [...existing, ...(bRes.data || [])];
-    const existingBlk = allBlocks.filter(b => b.date !== ds);
-    allBlocks = [...existingBlk, ...(blkRes.data || [])];
-  } catch (e) {
-    console.error('Fetch error:', e);
-  }
+    allBookings = [...allBookings.filter(b => b.date !== ds), ...(bRes.data || [])];
+    allBlocks   = [...allBlocks.filter(b => b.date !== ds),   ...(blkRes.data || [])];
+  } catch (e) { console.error('Fetch error:', e); }
 }
 
-// ── GRID RENDERING ────────────────────────────────────────────
 function renderGrid() {
   const container = document.getElementById('calendarContainer');
-  if (currentView === 'day') renderDayView(container);
-  else renderWeekView(container);
+  if (currentView === 'day') renderDayView(container); else renderWeekView(container);
 }
 
-function getTimeSlots() {
-  const slots = [];
-  for (let h = 8; h < 18; h++) {
-    slots.push(`${String(h).padStart(2,'0')}:00`);
-    slots.push(`${String(h).padStart(2,'0')}:30`);
+// ── SHARED HELPERS ────────────────────────────────────────────
+function visibleRooms() { return roomFilter === 'all' ? rooms : rooms.filter(r => r.id === roomFilter); }
+
+function eventsFor(ds, roomIds) {
+  const set = new Set(roomIds);
+  const bk = allBookings.filter(b => b.date === ds && b.status === 'confirmed' && set.has(b.room_id))
+    .map(b => ({ ...b, type: 'booking' }));
+  const bl = allBlocks.filter(b => b.date === ds && set.has(b.room_id)).map(b => ({ ...b, type: 'block' }));
+  return bk.concat(bl);
+}
+
+function hourRange(evs) {
+  let s = DEF_START, e = DEF_END;
+  evs.forEach(ev => {
+    s = Math.min(s, Math.floor(toMin(ev.start_time) / 60));
+    e = Math.max(e, Math.ceil(toMin(ev.end_time) / 60));
+  });
+  return { s, e: Math.min(e, 24) };
+}
+
+// side by side layout for overlapping events
+function layout(evs) {
+  const items = evs.map(ev => ({ ev, a: toMin(ev.start_time), b: toMin(ev.end_time), lane: 0, lanes: 1 }))
+    .sort((x, y) => x.a - y.a || x.b - y.b);
+  let cluster = [], end = -1;
+  const flush = () => { const n = Math.max(1, ...cluster.map(i => i.lane + 1)); cluster.forEach(i => i.lanes = n); cluster = []; };
+  items.forEach(it => {
+    if (cluster.length && it.a >= end) { flush(); end = -1; }
+    const used = cluster.filter(c => c.b > it.a).map(c => c.lane);
+    let l = 0; while (used.includes(l)) l++;
+    it.lane = l; cluster.push(it); end = Math.max(end, it.b);
+  });
+  if (cluster.length) flush();
+  return items;
+}
+
+function eventHtml(it, s, compact) {
+  const ev = it.ev;
+  const top = (it.a - s * 60) * HOUR_PX / 60;
+  const h = Math.max(22, (it.b - it.a) * HOUR_PX / 60 - 2);
+  const w = 100 / it.lanes, left = it.lane * w;
+  const pos = `top:${top}px;height:${h}px;width:calc(${w}% - 4px);inset-inline-start:calc(${left}% + 2px);`;
+  if (ev.type === 'block') {
+    return `<div class="tl-event tl-block" style="${pos}" title="${escHtml(ev.reason)}" onclick="event.stopPropagation();showBlockDetail('${escHtml(ev.reason).replace(/'/g, '&#39;')}')">
+      <div class="tl-ev-title">محظور</div>${h > 40 ? `<div class="tl-ev-sub">${escHtml(ev.reason)}</div>` : ''}</div>`;
   }
-  return slots;
+  const c = roomColor(ev.room_id);
+  const style = `${pos}background-color:#fff;background-image:linear-gradient(${c.bg},${c.bg});color:${c.fg};border-color:${c.bd};`;
+  const sub = compact
+    ? `<div class="tl-ev-sub">${escHtml(roomName(ev.room_id))}</div>`
+    : `<div class="tl-ev-sub">${escHtml(ev.employee_name)}</div>`;
+  const time = (!compact && h > 56) ? `<div class="tl-ev-time">${fmtRange(ev.start_time, ev.end_time)}</div>` : '';
+  return `<div class="tl-event" style="${style}" title="${escHtml(ev.purpose)}" onclick="event.stopPropagation();showBookingDetail('${ev.id}')">
+    <div class="tl-ev-title">${escHtml(ev.purpose)}</div>${h > 36 ? sub : ''}${time}</div>`;
 }
 
+function hourLabels(s, e) {
+  let out = '';
+  for (let h = s; h < e; h++) out += `<div class="tl-hour" style="height:${HOUR_PX}px"><span>${fmt12(pad2(h) + ':00')}</span></div>`;
+  return out;
+}
+
+function nowLine(ds, s, e) {
+  if (ds !== todayStr()) return '';
+  const n = new Date(), m = n.getHours() * 60 + n.getMinutes();
+  if (m < s * 60 || m > e * 60) return '';
+  const top = (m - s * 60) * HOUR_PX / 60;
+  return `<div class="tl-past" style="height:${top}px"></div><div class="tl-now" style="top:${top}px"></div>`;
+}
+
+function pastShade(ds, s) {
+  if (ds < todayStr()) return `<div class="tl-past" style="height:100%"></div>`;
+  return '';
+}
+
+// ── DAY VIEW ──────────────────────────────────────────────────
 function renderDayView(container) {
-  const ds   = dateStr(currentDate);
-  const isToday = ds === todayStr();
-  const slots= getTimeSlots();
+  const ds = dateStr(currentDate);
+  const vr = visibleRooms();
+  if (!vr.length) { container.innerHTML = '<div class="empty-state" style="padding:48px">لا توجد غرف</div>'; return; }
+  const ids = vr.map(r => r.id);
+  const evs = eventsFor(ds, ids);
+  const { s, e } = hourRange(evs);
+  const total = (e - s) * HOUR_PX;
 
-  const bookings = allBookings.filter(b => b.date === ds && b.status === 'confirmed' && matchesFilter(b.room_id));
-  const blocks   = allBlocks.filter(b => b.date === ds && matchesFilter(b.room_id));
-
-  const header = `<div style="display:grid;grid-template-columns:72px 1fr 1fr;background:var(--beige);border-bottom:2px solid var(--grey-border);">
-    <div style="padding:10px 12px;font-size:11px;font-weight:600;color:var(--text-muted);border-right:1px solid var(--grey-border);">الوقت</div>
-    <div style="padding:10px 12px;font-size:12px;font-weight:700;color:var(--navy);border-right:1px solid var(--grey-border);">قاعة الاجتماعات · Boardroom</div>
-    <div style="padding:10px 12px;font-size:12px;font-weight:700;color:var(--green);">غرفة الاجتماعات · Meeting room</div>
+  const head = `<div class="tl-head" style="grid-template-columns:72px repeat(${vr.length},1fr)">
+    <div class="tl-corner">الوقت</div>
+    ${vr.map(r => { const c = roomColor(r.id); return `<div class="tl-roomhead" style="border-top-color:${c.bd}"><span class="tl-dot" style="background:${c.bd}"></span><b>${escHtml(r.name)}</b><small>${escHtml(String(r.capacity))} <span>أشخاص</span></small></div>`; }).join('')}
   </div>`;
 
-  const rows = slots.map(time => {
-    const oakEvents  = getEventsForSlot(bookings, blocks, 'oak_room',  ds, time);
-    const treeEvents = getEventsForSlot(bookings, blocks, 'tree_room', ds, time);
-    const isPast = new Date(`${ds}T${time}:00`) <= new Date();
-
-    return `<div style="display:grid;grid-template-columns:72px 1fr 1fr;min-height:52px;border-bottom:1px solid var(--grey-border);background:${isPast?'var(--beige)':'var(--white)'}">
-      <div style="padding:8px 12px;font-size:11px;font-weight:600;color:var(--text-muted);border-right:1px solid var(--grey-border);background:var(--beige);display:flex;align-items:center;">${fmt12(time)}</div>
-      <div style="padding:4px;border-right:1px solid var(--grey-border);cursor:pointer;" onclick="handleCellClick('${ds}','${time}','oak_room')">${renderCellContent(oakEvents, isPast)}</div>
-      <div style="padding:4px;cursor:pointer;" onclick="handleCellClick('${ds}','${time}','tree_room')">${renderCellContent(treeEvents, isPast)}</div>
+  const cols = vr.map(r => {
+    const its = layout(evs.filter(x => x.room_id === r.id));
+    return `<div class="tl-col" style="height:${total}px" onclick="colClick(event,'${ds}','${r.id}',${s})">
+      ${nowLine(ds, s, e)}${ds < todayStr() ? pastShade(ds, s) : ''}
+      ${its.map(it => eventHtml(it, s, false)).join('')}
     </div>`;
   }).join('');
 
-  container.innerHTML = header + `<div style="overflow:auto;max-height:68vh;">${rows || '<div class="empty-state" style="padding:48px">لا توجد أوقات.</div>'}</div>`;
+  const empty = !evs.length ? '<div class="tl-empty">لا توجد حجوزات في هذا اليوم، اضغط على أي وقت لإنشاء حجز.</div>' : '';
+  container.innerHTML = head + empty + `<div class="tl-body" style="grid-template-columns:72px repeat(${vr.length},1fr)">
+    <div class="tl-times" style="height:${total}px">${hourLabels(s, e)}</div>${cols}</div>`;
+  scrollToNow(container, ds, s);
 }
 
+function scrollToNow(container, ds, s) {
+  const body = container.querySelector('.tl-body'); if (!body) return;
+  if (ds === todayStr()) { const m = new Date().getHours() * 60; body.scrollTop = Math.max(0, (m - s * 60) * HOUR_PX / 60 - 120); }
+  else body.scrollTop = 0;
+}
+
+function colClick(ev, ds, roomId, s) {
+  const rect = ev.currentTarget.getBoundingClientRect();
+  const y = ev.clientY - rect.top;
+  const mins = Math.floor((y * 60 / HOUR_PX) / 30) * 30 + s * 60;
+  goBook(ds, hhmm(mins), roomId);
+}
+
+function goBook(date, time, roomId) {
+  if (new Date(`${date}T${time}:00`) <= new Date()) { showToast('info', 'وقت مضى', 'لا يمكن الحجز في وقت مضى.'); return; }
+  const params = new URLSearchParams({ date, time, room: roomId || '' });
+  window.location.href = `/book?${params}`;
+}
+
+// ── WEEK VIEW ─────────────────────────────────────────────────
 function renderWeekView(container) {
   const start = getWeekStart(currentDate);
-  const days  = [];
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(start); d.setDate(d.getDate() + i);
-    days.push(d);
-  }
-  const slots = getTimeSlots();
+  const days = [];
+  for (let i = 0; i < 7; i++) { const d = new Date(start); d.setDate(d.getDate() + i); days.push(d); }
+  const vr = visibleRooms();
+  if (!vr.length) { container.innerHTML = '<div class="empty-state" style="padding:48px">لا توجد غرف</div>'; return; }
+  const ids = vr.map(r => r.id);
+  const per = days.map(d => eventsFor(dateStr(d), ids));
+  const { s, e } = hourRange([].concat(...per));
+  const total = (e - s) * HOUR_PX;
   const today = todayStr();
 
-  const headerCols = days.map(d => {
-    const ds  = dateStr(d);
-    const isTd = ds === today;
-    return `<div style="padding:10px 6px;font-size:11px;font-weight:600;color:${isTd?'var(--navy)':'var(--text-secondary)'};text-align:center;border-right:1px solid var(--grey-border);background:${isTd?'rgba(28,45,60,.06)':'var(--beige)'}">
-      <div>${DAYS[d.getDay()]}</div>
-      <div style="font-size:16px;font-weight:700;color:${isTd?'var(--navy)':'var(--text-primary)'};">${d.getDate()}${isTd?'<span style="display:inline-block;width:6px;height:6px;background:var(--gold);border-radius:50%;margin-left:3px;vertical-align:middle;"></span>':''}</div>
-    </div>`;
-  }).join('');
-
-  const header = `<div style="display:grid;grid-template-columns:60px repeat(7,1fr);background:var(--beige);border-bottom:2px solid var(--grey-border);position:sticky;top:0;z-index:10;">
-    <div style="padding:10px 8px;font-size:10px;font-weight:600;color:var(--text-muted);border-right:1px solid var(--grey-border);text-align:center;">الوقت</div>
-    ${headerCols}
+  const head = `<div class="tl-head" style="grid-template-columns:72px repeat(7,1fr)">
+    <div class="tl-corner">الوقت</div>
+    ${days.map(d => { const ds = dateStr(d), td = ds === today;
+      return `<div class="tl-dayhead ${td ? 'today' : ''}"><span>${d.toLocaleDateString(AR_LOCALE, { weekday: 'short' })}</span><b>${d.getDate()}</b></div>`; }).join('')}
   </div>`;
 
-  const rows = slots.map(time => {
-    const cells = days.map(d => {
-      const ds       = dateStr(d);
-      const isTd     = ds === today;
-      const isPast   = new Date(`${ds}T${time}:00`) <= new Date();
-      const bFilter  = allBookings.filter(b => b.date === ds && b.status === 'confirmed' && matchesFilter(b.room_id));
-      const blkFilter= allBlocks.filter(b => b.date === ds && matchesFilter(b.room_id));
-      const events   = getEventsForSlot(bFilter, blkFilter, null, ds, time);
-      return `<div style="padding:2px;border-right:1px solid var(--grey-border);background:${isTd?'rgba(114,105,68,.03)':isPast?'var(--beige)':'var(--white)'};min-height:44px;cursor:pointer;" onclick="handleCellClick('${ds}','${time}',null)">${renderCellContent(events, isPast)}</div>`;
-    }).join('');
-    return `<div style="display:grid;grid-template-columns:60px repeat(7,1fr);border-bottom:1px solid var(--grey-border);">
-      <div style="padding:6px 8px;font-size:10px;font-weight:600;color:var(--text-muted);background:var(--beige);border-right:1px solid var(--grey-border);display:flex;align-items:center;">${fmt12(time)}</div>
-      ${cells}
+  const cols = days.map((d, i) => {
+    const ds = dateStr(d);
+    return `<div class="tl-col ${ds === today ? 'today' : ''}" style="height:${total}px" onclick="weekClick(event,'${ds}',${s})">
+      ${nowLine(ds, s, e)}${ds < today ? pastShade(ds, s) : ''}
+      ${layout(per[i]).map(it => eventHtml(it, s, true)).join('')}
     </div>`;
   }).join('');
 
-  container.innerHTML = header + `<div style="overflow:auto;max-height:65vh;">${rows}</div>`;
+  container.innerHTML = head + `<div class="tl-body" style="grid-template-columns:72px repeat(7,1fr)">
+    <div class="tl-times" style="height:${total}px">${hourLabels(s, e)}</div>${cols}</div>`;
+  scrollToNow(container, today, s);
 }
 
-function renderCellContent(events, isPast) {
-  if (!events.length) {
-    return isPast ? '' : `<div style="height:100%;min-height:36px;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .2s;" class="slot-add-hint"><span style="font-size:10px;color:var(--green);font-weight:600;">+ احجز</span></div>`;
-  }
-  return events.map(ev => {
-    if (ev.type === 'block') {
-      return `<div class="cal-event blocked" title="${escHtml(ev.reason)}" onclick="event.stopPropagation();showBlockDetail('${escHtml(ev.reason)}')">🔒 ${escHtml(ev.reason)}</div>`;
-    }
-    const cls = ev.room_id === 'oak_room' ? 'oak-room' : 'tree-room';
-    return `<div class="cal-event ${cls}" title="${escHtml(ev.purpose)}" onclick="event.stopPropagation();showBookingDetail('${ev.id}')">${escHtml(ev.purpose)}<br><span style="font-size:10px;opacity:.8;">${escHtml(ev.employee_name)} · ${ev.room_name||''}</span></div>`;
-  }).join('');
-}
-
-function getEventsForSlot(bookings, blocks, roomId, date, time) {
-  const events = [];
-  const t1 = time;
-  const [h, m] = time.split(':').map(Number);
-  const t2 = `${String(Math.floor((h*60+m+30)/60)).padStart(2,'0')}:${String((h*60+m+30)%60).padStart(2,'0')}`;
-
-  for (const b of bookings) {
-    if (roomId && b.room_id !== roomId) continue;
-    if (!(t2 <= b.start_time || t1 >= b.end_time)) events.push({ ...b, type: 'booking' });
-  }
-  for (const bl of blocks) {
-    if (roomId && bl.room_id !== roomId) continue;
-    if (!(t2 <= bl.start_time || t1 >= bl.end_time)) events.push({ ...bl, type: 'block' });
-  }
-  return events;
-}
-
-function matchesFilter(roomId) {
-  if (roomFilter === 'all') return true;
-  return roomId === roomFilter;
-}
-
-// ── CELL CLICK ────────────────────────────────────────────────
-function handleCellClick(date, time, roomId) {
-  const events = getEventsForSlot(
-    allBookings.filter(b => b.date === date && b.status === 'confirmed'),
-    allBlocks.filter(b => b.date === date),
-    roomId, date, time
-  );
-
-  if (events.length === 0) {
-    const params = new URLSearchParams({ date, time: time, room: roomId || '' });
-    window.location.href = `/book?${params}`;
-    return;
-  }
-
-  const ev = events[0];
-  if (ev.type === 'block') { showBlockDetail(ev.reason); return; }
-  showBookingDetail(ev.id);
+function weekClick(ev, ds, s) {
+  const rect = ev.currentTarget.getBoundingClientRect();
+  const mins = Math.floor(((ev.clientY - rect.top) * 60 / HOUR_PX) / 30) * 30 + s * 60;
+  goBook(ds, hhmm(mins), roomFilter === 'all' ? '' : roomFilter);
 }
 
 async function showBookingDetail(id) {
