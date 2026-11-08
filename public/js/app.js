@@ -11,6 +11,7 @@ async function api(method, path, body) {
   };
   const token = sessionStorage.getItem('adminToken');
   if (token) opts.headers['x-admin-token'] = token;
+  try { const us = JSON.parse(sessionStorage.getItem('oaktreeUser') || 'null'); if (us && us.token) opts.headers['x-user-token'] = us.token; } catch (e) {}
   if (body)  opts.body = JSON.stringify(body);
   const res  = await fetch('/api' + path, opts);
   const data = await res.json();
