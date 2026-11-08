@@ -18,24 +18,31 @@ const logoUpload = multer({
 
 const ADMIN_CODE = process.env.ADMIN_CODE || 'Fathima';
 
+const crypto = require('crypto');
+const TOKEN_TTL_MS = 12 * 60 * 60 * 1000;
+const sessionSecret = () => process.env.SESSION_SECRET || (ADMIN_CODE + '|' + (process.env.DATABASE_URL || ''));
+const sign = payload => crypto.createHmac('sha256', sessionSecret()).update(payload).digest('base64url');
+
 router.post('/login', (req, res) => {
   const { code } = req.body;
   if (code !== ADMIN_CODE) {
-    return res.status(401).json({ success: false, error: 'Invalid access code. Please try again.' });
+    return res.status(401).json({ success: false, error: 'رمز الدخول غير صحيح. حاول مرة أخرى.' });
   }
-  const token = Buffer.from(`admin:${Date.now()}:${randomUUID()}`).toString('base64');
-  res.json({ success: true, token });
+  const payload = Buffer.from(JSON.stringify({ exp: Date.now() + TOKEN_TTL_MS, id: randomUUID() })).toString('base64url');
+  res.json({ success: true, token: `${payload}.${sign(payload)}` });
 });
 
 function adminAuth(req, res, next) {
   const token = req.headers['x-admin-token'];
-  if (!token) return res.status(401).json({ success: false, error: 'Admin authentication required.' });
+  if (!token) return res.status(401).json({ success: false, error: 'يلزم تسجيل دخول الإدارة.' });
   try {
-    const decoded = Buffer.from(token, 'base64').toString('utf-8');
-    if (!decoded.startsWith('admin:')) throw new Error();
+    const [payload, sig] = String(token).split('.');
+    const expected = sign(payload);
+    if (!sig || sig.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) throw new Error();
+    if (JSON.parse(Buffer.from(payload, 'base64url').toString()).exp < Date.now()) throw new Error();
     next();
   } catch {
-    res.status(401).json({ success: false, error: 'Invalid or expired admin token.' });
+    res.status(401).json({ success: false, error: 'انتهت الجلسة أو الرمز غير صالح.' });
   }
 }
 
@@ -64,7 +71,7 @@ router.put('/bookings/:id/override', adminAuth, async (req, res) => {
   try {
     const { reason } = req.body;
     const existing = await get('SELECT b.*, r.name as room_name FROM bookings b JOIN rooms r ON b.room_id = r.id WHERE b.id = ?', [req.params.id]);
-    if (!existing) return res.status(404).json({ success: false, error: 'Booking not found.' });
+    if (!existing) return res.status(404).json({ success: false, error: 'الحجز غير موجود.' });
 
     await run("UPDATE bookings SET status='overridden', notes=?, updated_at=NOW() WHERE id=?",
       [reason || 'Overridden by admin for priority use', req.params.id]);
@@ -73,7 +80,7 @@ router.put('/bookings/:id/override', adminAuth, async (req, res) => {
     await run(`INSERT INTO audit_log (id, action, entity_type, entity_id, details, performed_by) VALUES (?, 'OVERRIDE', 'booking', ?, ?, 'admin')`,
       [randomUUID(), req.params.id, JSON.stringify({ reason, employee: existing.employee_email })]);
 
-    res.json({ success: true, message: 'Booking overridden successfully.' });
+    res.json({ success: true, message: 'تم إلغاء الحجز بالأولوية.' });
   } catch (e) {
     res.status(500).json({ success: false, error: e.message });
   }
@@ -84,7 +91,7 @@ router.delete('/bookings/:id', adminAuth, async (req, res) => {
   try {
     const { reason } = req.body;
     const existing = await get('SELECT b.*, r.name as room_name FROM bookings b JOIN rooms r ON b.room_id = r.id WHERE b.id = ?', [req.params.id]);
-    if (!existing) return res.status(404).json({ success: false, error: 'Booking not found.' });
+    if (!existing) return res.status(404).json({ success: false, error: 'الحجز غير موجود.' });
 
     await run("UPDATE bookings SET status='cancelled', notes=?, updated_at=NOW() WHERE id=?",
       [reason || 'Cancelled by admin', req.params.id]);
@@ -93,7 +100,7 @@ router.delete('/bookings/:id', adminAuth, async (req, res) => {
     await run(`INSERT INTO audit_log (id, action, entity_type, entity_id, details, performed_by) VALUES (?, 'ADMIN_CANCEL', 'booking', ?, ?, 'admin')`,
       [randomUUID(), req.params.id, JSON.stringify({ reason })]);
 
-    res.json({ success: true, message: 'Booking cancelled.' });
+    res.json({ success: true, message: 'تم إلغاء الحجز.' });
   } catch (e) {
     res.status(500).json({ success: false, error: e.message });
   }
@@ -104,7 +111,7 @@ router.post('/blocks', adminAuth, async (req, res) => {
   try {
     const { room_id, date, start_time, end_time, reason, is_recurring, recurrence_pattern, recurrence_end_date } = req.body;
     if (!room_id || !date || !start_time || !end_time || !reason) {
-      return res.status(400).json({ success: false, error: 'Missing required fields.' });
+      return res.status(400).json({ success: false, error: 'هناك حقول مطلوبة ناقصة.' });
     }
     const id = randomUUID();
     await run(`INSERT INTO admin_blocks (id, room_id, date, start_time, end_time, reason, is_recurring, recurrence_pattern, recurrence_end_date)
@@ -138,11 +145,11 @@ router.get('/blocks', adminAuth, async (req, res) => {
 router.delete('/blocks/:id', adminAuth, async (req, res) => {
   try {
     const block = await get('SELECT * FROM admin_blocks WHERE id = ?', [req.params.id]);
-    if (!block) return res.status(404).json({ success: false, error: 'Block not found.' });
+    if (!block) return res.status(404).json({ success: false, error: 'الحظر غير موجود.' });
     await run('DELETE FROM admin_blocks WHERE id = ?', [req.params.id]);
     await run(`INSERT INTO audit_log (id, action, entity_type, entity_id, details, performed_by) VALUES (?, 'UNBLOCK', 'room', ?, ?, 'admin')`,
       [randomUUID(), req.params.id, JSON.stringify(block)]);
-    res.json({ success: true, message: 'Block removed.' });
+    res.json({ success: true, message: 'تمت إزالة الحظر.' });
   } catch (e) {
     res.status(500).json({ success: false, error: e.message });
   }
@@ -171,7 +178,7 @@ router.put('/settings', adminAuth, async (req, res) => {
     }
     await run(`INSERT INTO audit_log (id, action, entity_type, entity_id, details, performed_by) VALUES (?, 'SETTINGS_UPDATE', 'settings', null, ?, 'admin')`,
       [randomUUID(), JSON.stringify(Object.keys(req.body))]);
-    res.json({ success: true, message: 'Settings updated.' });
+    res.json({ success: true, message: 'تم تحديث الإعدادات.' });
   } catch (e) {
     res.status(500).json({ success: false, error: e.message });
   }
@@ -191,12 +198,12 @@ router.put('/rooms/:id', adminAuth, async (req, res) => {
   try {
     const { name, description, capacity, status } = req.body;
     const room = await get('SELECT * FROM rooms WHERE id = ?', [req.params.id]);
-    if (!room) return res.status(404).json({ success: false, error: 'Room not found.' });
+    if (!room) return res.status(404).json({ success: false, error: 'الغرفة غير موجودة.' });
     await run('UPDATE rooms SET name=?, description=?, capacity=?, status=? WHERE id=?',
       [name || room.name, description ?? room.description, capacity || room.capacity, status || room.status, req.params.id]);
     await run(`INSERT INTO audit_log (id, action, entity_type, entity_id, details, performed_by) VALUES (?, 'UPDATE_ROOM', 'room', ?, ?, 'admin')`,
       [randomUUID(), req.params.id, JSON.stringify({ name, status })]);
-    res.json({ success: true, message: 'Room updated.' });
+    res.json({ success: true, message: 'تم تحديث الغرفة.' });
   } catch (e) {
     res.status(500).json({ success: false, error: e.message });
   }
@@ -241,7 +248,7 @@ router.post('/bookings/recurring', adminAuth, async (req, res) => {
   try {
     const { employee_name, employee_email, room_id, start_date, end_date, start_time, duration, purpose, category, recurrence_pattern, notes } = req.body;
     if (!employee_name || !employee_email || !room_id || !start_date || !end_date || !start_time || !duration || !purpose || !recurrence_pattern) {
-      return res.status(400).json({ success: false, error: 'All fields required for recurring booking.' });
+      return res.status(400).json({ success: false, error: 'جميع الحقول مطلوبة للحجز المتكرر.' });
     }
 
     const durMins = parseInt(duration);
@@ -288,7 +295,7 @@ router.post('/bookings/recurring', adminAuth, async (req, res) => {
 // POST /api/admin/upload-logo  — stores as base64 data URI in the DB (no disk needed)
 router.post('/upload-logo', adminAuth, logoUpload.single('logo'), async (req, res) => {
   try {
-    if (!req.file) return res.status(400).json({ success: false, error: 'No valid image uploaded. Accepted: JPG, PNG, SVG, GIF, WebP (max 2 MB).' });
+    if (!req.file) return res.status(400).json({ success: false, error: 'لم تُرفع صورة صالحة. المسموح: JPG, PNG, SVG, GIF, WebP (حتى 2 ميجابايت).' });
     const dataUri = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
     await run(`INSERT INTO admin_settings (key, value, updated_at) VALUES ('logo_url', ?, NOW())
       ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value, updated_at=NOW()`, [dataUri]);
@@ -307,7 +314,7 @@ router.delete('/logo', adminAuth, async (req, res) => {
       ON CONFLICT(key) DO UPDATE SET value='', updated_at=NOW()`);
     await run(`INSERT INTO audit_log (id, action, entity_type, entity_id, details, performed_by) VALUES (?, 'LOGO_REMOVE', 'settings', null, '{}', 'admin')`,
       [randomUUID()]);
-    res.json({ success: true, message: 'Logo removed.' });
+    res.json({ success: true, message: 'تم حذف الشعار.' });
   } catch (e) {
     res.status(500).json({ success: false, error: e.message });
   }
@@ -316,7 +323,7 @@ router.delete('/logo', adminAuth, async (req, res) => {
 // POST /api/admin/test-email
 router.post('/test-email', adminAuth, async (req, res) => {
   const { to } = req.body;
-  if (!to) return res.status(400).json({ success: false, error: 'Recipient email address is required.' });
+  if (!to) return res.status(400).json({ success: false, error: 'بريد المستلم مطلوب.' });
   try {
     const result = await sendTestEmail(to);
     res.json({ success: true, ...result });

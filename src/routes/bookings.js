@@ -2,7 +2,26 @@ const express = require('express');
 const router = express.Router();
 const { randomUUID } = require('crypto');
 const { all, get, run } = require('../database/db');
-const { sendBookingConfirmation, sendCancellationNotification } = require('../services/emailService');
+const { sendBookingConfirmation, sendMeetingInvitations, sendCancellationNotification } = require('../services/emailService');
+const { getDaySchedule } = require('../services/schedule');
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// Clean the invitee list: valid unique emails, organizer excluded.
+// Returns { list } or { error } when an address is malformed.
+function normalizeAttendees(raw, organizerEmail) {
+  const seen = new Set([String(organizerEmail || '').trim().toLowerCase()]);
+  const list = [];
+  for (const a of Array.isArray(raw) ? raw : []) {
+    const email = String((a && a.email) || '').trim().toLowerCase();
+    if (!email) continue;
+    if (!EMAIL_RE.test(email)) return { error: `البريد الإلكتروني للمدعو غير صالح: ${email}` };
+    if (seen.has(email)) continue;
+    seen.add(email);
+    list.push({ name: String((a && a.name) || '').trim().slice(0, 100), email });
+  }
+  return { list };
+}
 
 function calcEndTime(startTime, durationMins) {
   const [h, m] = startTime.split(':').map(Number);
@@ -43,11 +62,32 @@ router.get('/', async (req, res) => {
   }
 });
 
+// GET /api/bookings/people  - names + emails seen before (for the invitee picker; no booking details)
+router.get('/people', async (req, res) => {
+  try {
+    const rows = await all('SELECT employee_name, employee_email, attendees FROM bookings ORDER BY created_at DESC LIMIT 1000');
+    const map = new Map();
+    const add = (name, email) => {
+      email = String(email || '').trim().toLowerCase();
+      if (!email) return;
+      const cur = map.get(email);
+      if (!cur || (!cur.name && name)) map.set(email, { name: name || '', email });
+    };
+    for (const r of rows) {
+      add(r.employee_name, r.employee_email);
+      try { for (const a of JSON.parse(r.attendees || '[]')) add(a.name, a.email); } catch { /* ignore */ }
+    }
+    res.json({ success: true, data: [...map.values()].sort((a, b) => (a.name || a.email).localeCompare(b.name || b.email)) });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 // GET /api/bookings/:id
 router.get('/:id', async (req, res) => {
   try {
     const b = await get('SELECT b.*, r.name as room_name FROM bookings b JOIN rooms r ON b.room_id = r.id WHERE b.id = ?', [req.params.id]);
-    if (!b) return res.status(404).json({ success: false, error: 'Booking not found' });
+    if (!b) return res.status(404).json({ success: false, error: 'الحجز غير موجود' });
     res.json({ success: true, data: b });
   } catch (e) {
     res.status(500).json({ success: false, error: e.message });
@@ -60,11 +100,13 @@ router.post('/', async (req, res) => {
     const { employee_name, employee_email, room_id, date, start_time, duration, purpose, category, notes } = req.body;
 
     if (!employee_name || !employee_email || !room_id || !date || !start_time || !duration || !purpose) {
-      return res.status(400).json({ success: false, error: 'All required fields must be filled in.' });
+      return res.status(400).json({ success: false, error: 'يرجى تعبئة جميع الحقول المطلوبة.' });
     }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(employee_email)) {
-      return res.status(400).json({ success: false, error: 'Please enter a valid email address.' });
+    if (!EMAIL_RE.test(employee_email)) {
+      return res.status(400).json({ success: false, error: 'يرجى إدخال بريد إلكتروني صحيح.' });
     }
+    const att = normalizeAttendees(req.body.attendees, employee_email);
+    if (att.error) return res.status(400).json({ success: false, error: att.error });
 
     const cfgRows = await all('SELECT key, value FROM admin_settings');
     const cfg = Object.fromEntries(cfgRows.map(r => [r.key, r.value]));
@@ -75,46 +117,61 @@ router.post('/', async (req, res) => {
     const durMins     = parseInt(duration);
 
     if (durMins < minDur || durMins > maxDur) {
-      return res.status(400).json({ success: false, error: `Duration must be between ${minDur} and ${maxDur} minutes.` });
+      return res.status(400).json({ success: false, error: `يجب أن تكون المدة بين ${minDur} و ${maxDur} دقيقة.` });
     }
 
     const end_time = calcEndTime(start_time, durMins);
     if (start_time < officeStart || end_time > officeEnd) {
-      return res.status(400).json({ success: false, error: `Bookings must be within office hours (${officeStart}–${officeEnd}).` });
+      return res.status(400).json({ success: false, error: `يجب أن يكون الحجز ضمن ساعات العمل من ${officeStart} إلى ${officeEnd}.` });
     }
 
     const slotDT = new Date(`${date}T${start_time}:00`);
     if (slotDT <= nowInRiyadh()) {
-      return res.status(400).json({ success: false, error: 'Cannot book a time slot in the past.' });
+      return res.status(400).json({ success: false, error: 'لا يمكن الحجز في وقت مضى.' });
     }
 
+    const room = await get("SELECT * FROM rooms WHERE id = ? AND status = 'active'", [room_id]);
+    if (!room) return res.status(400).json({ success: false, error: 'القاعة غير موجودة أو غير متاحة.' });
+
+    if (att.list.length + 1 > room.capacity) {
+      return res.status(400).json({ success: false, error: `سعة ${room.name} هي ${room.capacity} أشخاص، وعدد المشاركين (مع المنظم) ${att.list.length + 1}.` });
+    }
+
+    // Conflict: tell the user who has the room and what is free instead
     const overlap = await get(`
-      SELECT id FROM bookings
+      SELECT start_time, end_time, purpose, employee_name FROM bookings
       WHERE room_id = ? AND date = ? AND status = 'confirmed'
       AND NOT (end_time <= ? OR start_time >= ?)
     `, [room_id, date, start_time, end_time]);
-    if (overlap) return res.status(409).json({ success: false, error: 'This time slot is already booked. Please choose a different time.' });
-
-    const blocked = await get(`
-      SELECT id FROM admin_blocks WHERE room_id = ? AND date = ?
+    const blocked = overlap ? null : await get(`
+      SELECT start_time, end_time, reason FROM admin_blocks WHERE room_id = ? AND date = ?
       AND NOT (end_time <= ? OR start_time >= ?)
     `, [room_id, date, start_time, end_time]);
-    if (blocked) return res.status(409).json({ success: false, error: 'This time slot has been blocked by administration.' });
-
-    const room = await get("SELECT * FROM rooms WHERE id = ? AND status = 'active'", [room_id]);
-    if (!room) return res.status(400).json({ success: false, error: 'Room not found or unavailable.' });
+    if (overlap || blocked) {
+      return res.status(409).json({
+        success: false,
+        error: overlap
+          ? 'هذا الوقت محجوز مسبقاً. اختر وقتاً من الأوقات المتاحة أدناه.'
+          : 'هذا الوقت محجوب من قبل الإدارة. اختر وقتاً من الأوقات المتاحة أدناه.',
+        conflict: overlap
+          ? { type: 'booking', start_time: overlap.start_time, end_time: overlap.end_time, purpose: overlap.purpose, employee_name: overlap.employee_name }
+          : { type: 'block', start_time: blocked.start_time, end_time: blocked.end_time, reason: blocked.reason },
+        schedule: await getDaySchedule(date, durMins)
+      });
+    }
 
     const id = randomUUID();
     await run(`
-      INSERT INTO bookings (id, employee_name, employee_email, room_id, date, start_time, end_time, duration, purpose, category, notes)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `, [id, employee_name.trim(), employee_email.trim().toLowerCase(), room_id, date, start_time, end_time, durMins, purpose.trim(), category || 'meeting', notes || '']);
+      INSERT INTO bookings (id, employee_name, employee_email, room_id, date, start_time, end_time, duration, purpose, category, notes, attendees)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [id, employee_name.trim(), employee_email.trim().toLowerCase(), room_id, date, start_time, end_time, durMins, purpose.trim(), category || 'meeting', notes || '', JSON.stringify(att.list)]);
 
     const booking = await get('SELECT b.*, r.name as room_name FROM bookings b JOIN rooms r ON b.room_id = r.id WHERE b.id = ?', [id]);
     sendBookingConfirmation(booking).catch(e => console.error('Email err:', e));
+    sendMeetingInvitations(booking).catch(e => console.error('Invite err:', e));
 
     await run(`INSERT INTO audit_log (id, action, entity_type, entity_id, details, performed_by) VALUES (?, 'CREATE', 'booking', ?, ?, ?)`,
-      [randomUUID(), id, JSON.stringify({ employee_name, room_id, date, start_time, end_time }), employee_email.toLowerCase()]);
+      [randomUUID(), id, JSON.stringify({ employee_name, room_id, date, start_time, end_time, attendees: att.list.length }), employee_email.toLowerCase()]);
 
     res.status(201).json({ success: true, data: booking });
   } catch (e) {
@@ -128,12 +185,12 @@ router.put('/:id', async (req, res) => {
     const { employee_email, date, start_time, duration, purpose, category, notes } = req.body;
 
     const existing = await get('SELECT * FROM bookings WHERE id = ?', [req.params.id]);
-    if (!existing) return res.status(404).json({ success: false, error: 'Booking not found.' });
+    if (!existing) return res.status(404).json({ success: false, error: 'الحجز غير موجود.' });
     if (existing.employee_email.toLowerCase() !== (employee_email || '').toLowerCase()) {
-      return res.status(403).json({ success: false, error: 'You can only edit your own bookings.' });
+      return res.status(403).json({ success: false, error: 'يمكنك تعديل حجوزاتك فقط.' });
     }
     if (existing.status !== 'confirmed') {
-      return res.status(400).json({ success: false, error: 'Cannot edit a cancelled or overridden booking.' });
+      return res.status(400).json({ success: false, error: 'لا يمكن تعديل حجز ملغي.' });
     }
 
     const cfgRows = await all('SELECT key, value FROM admin_settings');
@@ -144,25 +201,37 @@ router.put('/:id', async (req, res) => {
     const newEnd   = calcEndTime(newStart, newDur);
 
     if (new Date(`${newDate}T${newStart}:00`) <= nowInRiyadh()) {
-      return res.status(400).json({ success: false, error: 'Cannot move booking to a past time.' });
+      return res.status(400).json({ success: false, error: 'لا يمكن نقل الحجز إلى وقت مضى.' });
     }
     const officeStart = cfg.office_hours_start || '08:00';
     const officeEnd   = cfg.office_hours_end   || '18:00';
     if (newStart < officeStart || newEnd > officeEnd) {
-      return res.status(400).json({ success: false, error: `Bookings must be within office hours (${officeStart}–${officeEnd}).` });
+      return res.status(400).json({ success: false, error: `يجب أن يكون الحجز ضمن ساعات العمل من ${officeStart} إلى ${officeEnd}.` });
     }
 
     const overlap = await get(`
       SELECT id FROM bookings WHERE room_id = ? AND date = ? AND status = 'confirmed' AND id != ?
       AND NOT (end_time <= ? OR start_time >= ?)
     `, [existing.room_id, newDate, req.params.id, newStart, newEnd]);
-    if (overlap) return res.status(409).json({ success: false, error: 'This time slot is already booked.' });
+    if (overlap) return res.status(409).json({ success: false, error: 'هذا الوقت محجوز مسبقاً.' });
+
+    let attendeesJson = existing.attendees || '[]';
+    if (Array.isArray(req.body.attendees)) {
+      const att = normalizeAttendees(req.body.attendees, existing.employee_email);
+      if (att.error) return res.status(400).json({ success: false, error: att.error });
+      const room = await get('SELECT capacity, name FROM rooms WHERE id = ?', [existing.room_id]);
+      if (room && att.list.length + 1 > room.capacity) {
+        return res.status(400).json({ success: false, error: `سعة ${room.name} هي ${room.capacity} أشخاص.` });
+      }
+      attendeesJson = JSON.stringify(att.list);
+    }
 
     await run(`
-      UPDATE bookings SET date=?, start_time=?, end_time=?, duration=?, purpose=?, category=?, notes=?, updated_at=NOW() WHERE id=?
-    `, [newDate, newStart, newEnd, newDur, purpose || existing.purpose, category || existing.category, notes ?? existing.notes, req.params.id]);
+      UPDATE bookings SET date=?, start_time=?, end_time=?, duration=?, purpose=?, category=?, notes=?, attendees=?, updated_at=NOW() WHERE id=?
+    `, [newDate, newStart, newEnd, newDur, purpose || existing.purpose, category || existing.category, notes ?? existing.notes, attendeesJson, req.params.id]);
 
     const updated = await get('SELECT b.*, r.name as room_name FROM bookings b JOIN rooms r ON b.room_id = r.id WHERE b.id = ?', [req.params.id]);
+    sendMeetingInvitations(updated, { updated: true }).catch(e => console.error('Invite err:', e));
     await run(`INSERT INTO audit_log (id, action, entity_type, entity_id, details, performed_by) VALUES (?, 'UPDATE', 'booking', ?, ?, ?)`,
       [randomUUID(), req.params.id, JSON.stringify({ changes: req.body }), employee_email]);
 
@@ -177,18 +246,18 @@ router.delete('/:id', async (req, res) => {
   try {
     const { employee_email } = req.body;
     const existing = await get('SELECT b.*, r.name as room_name FROM bookings b JOIN rooms r ON b.room_id = r.id WHERE b.id = ?', [req.params.id]);
-    if (!existing) return res.status(404).json({ success: false, error: 'Booking not found.' });
+    if (!existing) return res.status(404).json({ success: false, error: 'الحجز غير موجود.' });
     if (existing.employee_email.toLowerCase() !== (employee_email || '').toLowerCase()) {
-      return res.status(403).json({ success: false, error: 'You can only cancel your own bookings.' });
+      return res.status(403).json({ success: false, error: 'يمكنك إلغاء حجوزاتك فقط.' });
     }
 
     await run("UPDATE bookings SET status='cancelled', updated_at=NOW() WHERE id=?", [req.params.id]);
-    sendCancellationNotification(existing, 'Cancelled by employee').catch(e => console.error('Email err:', e));
+    sendCancellationNotification(existing, 'ألغاه الموظف').catch(e => console.error('Email err:', e));
 
     await run(`INSERT INTO audit_log (id, action, entity_type, entity_id, details, performed_by) VALUES (?, 'CANCEL', 'booking', ?, ?, ?)`,
-      [randomUUID(), req.params.id, 'Employee cancelled their booking', employee_email]);
+      [randomUUID(), req.params.id, 'ألغى الموظف حجزه', employee_email]);
 
-    res.json({ success: true, message: 'Booking cancelled successfully.' });
+    res.json({ success: true, message: 'تم إلغاء الحجز بنجاح.' });
   } catch (e) {
     res.status(500).json({ success: false, error: e.message });
   }

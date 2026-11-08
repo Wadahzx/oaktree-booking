@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { all, get } = require('../database/db');
+const { getDaySchedule } = require('../services/schedule');
 
 const TZ = 'Asia/Riyadh';
 function nowInRiyadh() {
@@ -20,7 +21,7 @@ router.get('/', async (req, res) => {
 router.get('/availability', async (req, res) => {
   try {
     const { date } = req.query;
-    if (!date) return res.status(400).json({ success: false, error: 'Date required.' });
+    if (!date) return res.status(400).json({ success: false, error: 'التاريخ مطلوب.' });
 
     const rooms = await all("SELECT * FROM rooms WHERE status = 'active'");
     const availability = await Promise.all(rooms.map(async room => {
@@ -34,13 +35,26 @@ router.get('/availability', async (req, res) => {
   }
 });
 
+// GET /api/rooms/schedule?date=YYYY-MM-DD&duration=60
+// Per room: who booked what, free windows, and (with duration) the start times that fit.
+router.get('/schedule', async (req, res) => {
+  try {
+    const { date, duration } = req.query;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date || '')) return res.status(400).json({ success: false, error: 'التاريخ مطلوب.' });
+    const data = await getDaySchedule(date, parseInt(duration) || 0);
+    res.json({ success: true, data });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 router.get('/:id/availability', async (req, res) => {
   try {
     const { date } = req.query;
-    if (!date) return res.status(400).json({ success: false, error: 'Date required.' });
+    if (!date) return res.status(400).json({ success: false, error: 'التاريخ مطلوب.' });
 
     const room = await get('SELECT * FROM rooms WHERE id = ?', [req.params.id]);
-    if (!room) return res.status(404).json({ success: false, error: 'Room not found.' });
+    if (!room) return res.status(404).json({ success: false, error: 'الغرفة غير موجودة.' });
 
     const bookings = await all("SELECT * FROM bookings WHERE room_id=? AND date=? AND status='confirmed' ORDER BY start_time", [req.params.id, date]);
     const blocks   = await all("SELECT * FROM admin_blocks WHERE room_id=? AND date=? ORDER BY start_time", [req.params.id, date]);

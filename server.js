@@ -27,7 +27,7 @@ function ensureDb() {
 
 app.use(async (req, res, next) => {
   try { await ensureDb(); next(); }
-  catch (e) { res.status(500).json({ success: false, error: 'Database initialization failed: ' + e.message }); }
+  catch (e) { res.status(500).json({ success: false, error: 'تعذّر تهيئة قاعدة البيانات: ' + e.message }); }
 });
 
 app.use('/api/bookings', bookingsRouter);
@@ -73,7 +73,6 @@ if (!process.env.VERCEL) {
       console.log(`  ║   Oaktree Group — Meeting Room Booking   ║`);
       console.log(`  ║                                          ║`);
       console.log(`  ║   http://localhost:${PORT}                   ║`);
-      console.log(`  ║   Admin code: Fathima                    ║`);
       console.log('  ╚══════════════════════════════════════════╝\n');
     });
   }).catch(err => { console.error('Failed to start server:', err); process.exit(1); });

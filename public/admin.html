@@ -1,14 +1,14 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="ar" dir="rtl" data-theme="light">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin Panel – Oaktree Meeting Room Booking</title>
+  <title>لوحة الإدارة | Oaktree</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/styles.css">
   <style>
-    .admin-topbar-badge { background:rgba(201,168,76,.15); color:var(--gold); border:1px solid rgba(201,168,76,.3); font-size:11px; font-weight:700; padding:3px 10px; border-radius:20px; letter-spacing:.3px; }
+    .admin-topbar-badge { background:rgba(114,105,68,.15); color:var(--gold); border:1px solid rgba(114,105,68,.3); font-size:11px; font-weight:700; padding:3px 10px; border-radius:20px; letter-spacing:.3px; }
     .analytics-card { background:var(--white); border:1px solid var(--grey-border); border-radius:var(--radius-md); padding:20px; box-shadow:var(--shadow-sm); }
     .audit-row { display:grid; grid-template-columns:140px 100px 1fr 140px; gap:12px; padding:10px 16px; border-bottom:1px solid var(--grey-border); font-size:13px; align-items:start; }
     .audit-row:last-child { border-bottom:none; }
@@ -18,7 +18,7 @@
     .audit-OVERRIDE { background:var(--warning-bg); color:var(--warning); }
     .audit-BLOCK    { background:#F3F4F6; color:#374151; }
     .audit-UNBLOCK  { background:var(--success-bg); color:var(--green); }
-    .audit-SETTINGS_UPDATE, .audit-UPDATE_ROOM { background:rgba(27,42,74,.08); color:var(--navy); }
+    .audit-SETTINGS_UPDATE, .audit-UPDATE_ROOM { background:rgba(28,45,60,.08); color:var(--navy); }
     .audit-CREATE_RECURRING { background:#EEF2FF; color:#4F46E5; }
     .block-chip { display:inline-flex; align-items:center; gap:6px; background:var(--grey-bg); border:1px solid var(--grey-border); border-radius:var(--radius-sm); padding:6px 12px; font-size:13px; }
     .block-chip-remove { background:none; border:none; color:var(--text-muted); cursor:pointer; padding:0 2px; line-height:1; font-size:16px; }
@@ -33,20 +33,20 @@
     <div class="admin-login-icon">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
     </div>
-    <h1>Admin Access</h1>
-    <p>Enter your admin access code to manage the Oaktree Meeting Room Booking System.</p>
+    <img class="brand-logo-dark" src="/img/oaktree-logo-olive.png" alt="Oaktree" style="height:34px;margin:0 auto 14px;display:block"><h1>دخول الإدارة</h1>
+    <p>أدخل رمز الدخول لإدارة نظام حجز غرف الاجتماعات في Oaktree.</p>
     <div class="form-group" style="text-align:left">
-      <label for="adminCode">Access Code <span class="required">*</span></label>
-      <input type="password" id="adminCode" placeholder="Enter access code" autocomplete="current-password"
+      <label for="adminCode">رمز الدخول <span class="required">*</span></label>
+      <input type="password" id="adminCode" placeholder="أدخل رمز الدخول" autocomplete="current-password"
         onkeydown="if(event.key==='Enter') submitAdminLogin()">
-      <div class="input-error" id="loginError" style="display:none;">Incorrect access code. Please try again.</div>
+      <div class="input-error" id="loginError" style="display:none;">رمز الدخول غير صحيح، حاول مرة أخرى.</div>
     </div>
     <button class="btn btn-primary w-full" onclick="submitAdminLogin()" id="loginBtn" style="margin-top:4px">
       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
-      Sign In to Admin Panel
+      دخول لوحة الإدارة
     </button>
-    <p style="margin-top:20px;font-size:12px;color:var(--text-muted)">This panel is restricted to authorised administrators only.</p>
-    <div style="margin-top:16px"><a href="/" style="font-size:13px;color:var(--navy);text-decoration:none;">← Back to Dashboard</a></div>
+    <p style="margin-top:20px;font-size:12px;color:var(--text-muted)">هذه اللوحة مخصصة للمسؤولين المصرّح لهم فقط.</p>
+    <div style="margin-top:16px"><a href="/" style="font-size:13px;color:var(--navy);text-decoration:none;">العودة إلى لوحة التحكم ←</a></div>
   </div>
 </div>
 
@@ -55,26 +55,25 @@
   <div class="sidebar-overlay" id="sidebarOverlay"></div>
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-logo">
-      <div class="logo-mark" id="sidebarLogoMark">OG</div>
-      <div class="logo-text"><span class="company-name">Oaktree Group</span><span class="system-name" data-i18n="brand.adminSystem">Admin Panel</span></div>
+      <img class="brand-logo" src="/img/oaktree-logo-white.png" alt="Oaktree">
+      <span class="system-name" data-i18n="brand.adminSystem">لوحة الإدارة</span>
     </div>
     <nav class="sidebar-nav">
-      <span class="nav-label">Main Menu</span>
-      <a href="/" class="nav-item"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg><span data-i18n="nav.dashboard">Dashboard</span></a>
-      <a href="/book" class="nav-item"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg><span data-i18n="nav.book">Book a Room</span></a>
-      <a href="/calendar" class="nav-item"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span data-i18n="nav.calendar">Calendar</span></a>
-      <a href="/my-bookings" class="nav-item"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg><span data-i18n="nav.mybookings">My Bookings</span></a>
+      <span class="nav-label">القائمة الرئيسية</span>
+      <a href="/" class="nav-item"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg><span data-i18n="nav.dashboard">لوحة التحكم</span></a>
+      <a href="/book" class="nav-item"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg><span data-i18n="nav.book">احجز غرفة</span></a>
+      <a href="/calendar" class="nav-item"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span data-i18n="nav.calendar">التقويم</span></a>
+      <a href="/my-bookings" class="nav-item"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg><span data-i18n="nav.mybookings">حجوزاتي</span></a>
       <div class="nav-divider"></div>
-      <span class="nav-label">Administration</span>
-      <a href="/admin" class="nav-item active"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg><span data-i18n="nav.admin">Admin Panel</span></a>
+      <span class="nav-label">الإدارة</span>
+      <a href="/admin" class="nav-item active"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg><span data-i18n="nav.admin">لوحة الإدارة</span></a>
     </nav>
     <div class="sidebar-footer">
       <div class="nav-divider"></div>
-      <button class="lang-toggle" onclick="toggleLanguage()"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg><span id="langLabel">العربية</span></button>
-      <button class="theme-toggle" id="themeToggle"><svg id="themeIcon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg><span id="themeLabel">Dark Mode</span></button>
+      <button class="theme-toggle" id="themeToggle"><svg id="themeIcon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg><span id="themeLabel">الوضع الداكن</span></button>
       <button class="nav-item" onclick="adminLogout()" style="cursor:pointer;color:var(--danger);background:none;border:none;width:100%;text-align:left;font-family:inherit;font-size:14px;font-weight:500;">
         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-        <span>Sign Out</span>
+        <span>تسجيل الخروج</span>
       </button>
     </div>
   </aside>
@@ -82,9 +81,9 @@
   <main class="main-content">
     <header class="topbar">
       <button class="sidebar-toggle" id="sidebarToggle"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
-      <div class="topbar-title">Admin Panel</div>
+      <div class="topbar-title">لوحة الإدارة</div>
       <div class="topbar-right">
-        <span class="admin-topbar-badge" data-i18n="common.internal">Administrator</span>
+        <span class="admin-topbar-badge" data-i18n="common.internal">مسؤول</span>
         <div class="date-display" id="currentDate"></div>
       </div>
     </header>
@@ -92,21 +91,21 @@
     <div class="page-content">
       <!-- Admin Stats -->
       <div class="stats-grid mb-3" id="adminStats">
-        <div class="stat-card"><div class="stat-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div><div class="stat-label">Total Bookings</div><div class="stat-value" id="aSTotal">—</div><div class="stat-sub">all time confirmed</div></div>
-        <div class="stat-card"><div class="stat-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div class="stat-label">Today</div><div class="stat-value" id="aSToday">—</div><div class="stat-sub">bookings today</div></div>
-        <div class="stat-card"><div class="stat-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div><div class="stat-label">Cancelled</div><div class="stat-value" id="aSCancelled">—</div><div class="stat-sub">total cancellations</div></div>
-        <div class="stat-card"><div class="stat-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div><div class="stat-label">Overridden</div><div class="stat-value" id="aSOverridden">—</div><div class="stat-sub">priority overrides</div></div>
+        <div class="stat-card"><div class="stat-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div><div class="stat-label">إجمالي الحجوزات</div><div class="stat-value" id="aSTotal">…</div><div class="stat-sub">المؤكدة منذ البداية</div></div>
+        <div class="stat-card"><div class="stat-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div class="stat-label">اليوم</div><div class="stat-value" id="aSToday">…</div><div class="stat-sub">حجوزات اليوم</div></div>
+        <div class="stat-card"><div class="stat-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div><div class="stat-label">ملغاة</div><div class="stat-value" id="aSCancelled">…</div><div class="stat-sub">إجمالي الإلغاءات</div></div>
+        <div class="stat-card"><div class="stat-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div><div class="stat-label">ألغيت بالأولوية</div><div class="stat-value" id="aSOverridden">…</div><div class="stat-sub">إلغاءات بالأولوية</div></div>
       </div>
 
       <!-- Admin Tabs -->
       <div class="tab-nav">
-        <button class="tab-btn active" data-tab="bookings">All Bookings</button>
-        <button class="tab-btn" data-tab="blocks">Block Slots</button>
-        <button class="tab-btn" data-tab="recurring">Recurring</button>
-        <button class="tab-btn" data-tab="rooms">Rooms</button>
-        <button class="tab-btn" data-tab="analytics">Analytics</button>
-        <button class="tab-btn" data-tab="settings">Settings</button>
-        <button class="tab-btn" data-tab="audit">Audit Log</button>
+        <button class="tab-btn active" data-tab="bookings">كل الحجوزات</button>
+        <button class="tab-btn" data-tab="blocks">حظر الأوقات</button>
+        <button class="tab-btn" data-tab="recurring">حجوزات متكررة</button>
+        <button class="tab-btn" data-tab="rooms">الغرف</button>
+        <button class="tab-btn" data-tab="analytics">التحليلات</button>
+        <button class="tab-btn" data-tab="settings">الإعدادات</button>
+        <button class="tab-btn" data-tab="audit">سجل العمليات</button>
       </div>
 
       <!-- TAB: All Bookings -->
@@ -115,35 +114,35 @@
           <div class="card-header">
             <div class="card-title">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-              All Reservations
+              كل الحجوزات
             </div>
-            <button class="btn btn-outline btn-sm" onclick="loadAdminBookings()">Refresh</button>
+            <button class="btn btn-outline btn-sm" onclick="loadAdminBookings()">تحديث</button>
           </div>
           <div class="card-body" style="padding-bottom:0">
             <div class="filter-bar">
               <div class="search-input-wrap">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                <input type="text" id="bSearch" placeholder="Search by name or email…" oninput="loadAdminBookings()">
+                <input type="text" id="bSearch" placeholder="ابحث بالاسم أو البريد الإلكتروني…" oninput="loadAdminBookings()">
               </div>
               <input type="date" id="bDate" onchange="loadAdminBookings()" style="width:160px">
               <select id="bRoom" onchange="loadAdminBookings()" style="width:150px">
-                <option value="">All Rooms</option>
-                <option value="oak_room">Oak Room</option>
-                <option value="tree_room">Tree Room</option>
+                <option value="">جميع الغرف</option>
+                <option value="oak_room">قاعة الاجتماعات · Boardroom</option>
+                <option value="tree_room">غرفة الاجتماعات · Meeting room</option>
               </select>
               <select id="bStatus" onchange="loadAdminBookings()" style="width:150px">
-                <option value="">All Statuses</option>
-                <option value="confirmed">Confirmed</option>
-                <option value="cancelled">Cancelled</option>
-                <option value="overridden">Overridden</option>
+                <option value="">كل الحالات</option>
+                <option value="confirmed">مؤكد</option>
+                <option value="cancelled">ملغاة</option>
+                <option value="overridden">ألغيت بالأولوية</option>
               </select>
-              <button class="btn btn-outline btn-sm" onclick="clearBookingFilters()">Clear Filters</button>
+              <button class="btn btn-outline btn-sm" onclick="clearBookingFilters()">مسح الفلاتر</button>
             </div>
           </div>
           <div class="table-wrap">
             <table class="data-table">
               <thead><tr>
-                <th>Employee</th><th>Room</th><th>Date</th><th>Time</th><th>Duration</th><th>Purpose</th><th>Status</th><th>Actions</th>
+                <th>الموظف</th><th>الغرفة</th><th>التاريخ</th><th>الوقت</th><th>المدة</th><th>الغرض</th><th>الحالة</th><th>إجراءات</th>
               </tr></thead>
               <tbody id="adminBookingsBody">
                 <tr class="loading-row"><td colspan="8"><div class="spinner spinner-dark"></div></td></tr>
@@ -157,55 +156,55 @@
       <div class="tab-panel" id="tab-blocks">
         <div class="two-col" style="align-items:start">
           <div class="card">
-            <div class="card-header"><div class="card-title"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Add Block</div></div>
+            <div class="card-header"><div class="card-title"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> إضافة حظر</div></div>
             <div class="card-body">
               <form id="blockForm" novalidate>
                 <div class="form-group">
-                  <label for="blockRoom">Room <span class="required">*</span></label>
+                  <label for="blockRoom">الغرفة <span class="required">*</span></label>
                   <select id="blockRoom" required>
-                    <option value="">Select a room</option>
-                    <option value="oak_room">Oak Room</option>
-                    <option value="tree_room">Tree Room</option>
+                    <option value="">اختر غرفة</option>
+                    <option value="oak_room">قاعة الاجتماعات · Boardroom</option>
+                    <option value="tree_room">غرفة الاجتماعات · Meeting room</option>
                   </select>
                 </div>
                 <div class="form-row">
                   <div class="form-group">
-                    <label for="blockDate">Date <span class="required">*</span></label>
+                    <label for="blockDate">التاريخ <span class="required">*</span></label>
                     <input type="date" id="blockDate" required>
                   </div>
                   <div class="form-group">
-                    <label for="blockReason">Reason <span class="required">*</span></label>
-                    <input type="text" id="blockReason" placeholder="e.g. Maintenance, Private event" required>
+                    <label for="blockReason">السبب <span class="required">*</span></label>
+                    <input type="text" id="blockReason" placeholder="مثال: صيانة، فعالية خاصة" required>
                   </div>
                 </div>
                 <div class="form-row">
                   <div class="form-group">
-                    <label for="blockStart">Start Time <span class="required">*</span></label>
+                    <label for="blockStart">وقت البداية <span class="required">*</span></label>
                     <input type="time" id="blockStart" required>
                   </div>
                   <div class="form-group">
-                    <label for="blockEnd">End Time <span class="required">*</span></label>
+                    <label for="blockEnd">وقت النهاية <span class="required">*</span></label>
                     <input type="time" id="blockEnd" required>
                   </div>
                 </div>
                 <button type="submit" class="btn btn-primary w-full">
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                  Block This Time Slot
+                  حظر هذا الوقت
                 </button>
               </form>
             </div>
           </div>
           <div class="card">
             <div class="card-header">
-              <div class="card-title"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Active Blocks</div>
-              <button class="btn btn-outline btn-sm" onclick="loadBlocks()">Refresh</button>
+              <div class="card-title"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> الأوقات المحظورة حالياً</div>
+              <button class="btn btn-outline btn-sm" onclick="loadBlocks()">تحديث</button>
             </div>
             <div class="card-body" style="padding:0">
               <div id="blocksList">
                 <div class="empty-state" style="padding:40px 0">
                   <div class="empty-state-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
-                  <div class="empty-state-title">No blocked slots configured</div>
-                  <div class="empty-state-desc">Add a block to prevent employees from booking a specific time slot.</div>
+                  <div class="empty-state-title">لا توجد أوقات محظورة</div>
+                  <div class="empty-state-desc">أضف حظراً لمنع الموظفين من حجز وقت معيّن.</div>
                 </div>
               </div>
             </div>
@@ -216,83 +215,83 @@
       <!-- TAB: Recurring Bookings -->
       <div class="tab-panel" id="tab-recurring">
         <div class="card">
-          <div class="card-header"><div class="card-title"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg> Create Recurring Booking</div></div>
+          <div class="card-header"><div class="card-title"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg> إنشاء حجز متكرر</div></div>
           <div class="card-body">
-            <p style="font-size:14px;color:var(--text-secondary);margin-bottom:20px;">Create bookings that repeat on a schedule. Slots that are already taken will be automatically skipped.</p>
+            <p style="font-size:14px;color:var(--text-secondary);margin-bottom:20px;">أنشئ حجوزات تتكرر وفق جدول. تُتجاوز الأوقات المحجوزة تلقائياً.</p>
             <form id="recurringForm" novalidate>
               <div class="form-row">
                 <div class="form-group">
-                  <label for="rName">Employee Name <span class="required">*</span></label>
-                  <input type="text" id="rName" placeholder="Full name" required>
+                  <label for="rName">اسم الموظف <span class="required">*</span></label>
+                  <input type="text" id="rName" placeholder="الاسم الكامل" required>
                 </div>
                 <div class="form-group">
-                  <label for="rEmail">Employee Email <span class="required">*</span></label>
+                  <label for="rEmail">بريد الموظف <span class="required">*</span></label>
                   <input type="email" id="rEmail" placeholder="email@oaktree.com" required>
                 </div>
               </div>
               <div class="form-row">
                 <div class="form-group">
-                  <label for="rRoom">Room <span class="required">*</span></label>
+                  <label for="rRoom">الغرفة <span class="required">*</span></label>
                   <select id="rRoom" required>
-                    <option value="">Select a room</option>
-                    <option value="oak_room">Oak Room</option>
-                    <option value="tree_room">Tree Room</option>
+                    <option value="">اختر غرفة</option>
+                    <option value="oak_room">قاعة الاجتماعات · Boardroom</option>
+                    <option value="tree_room">غرفة الاجتماعات · Meeting room</option>
                   </select>
                 </div>
                 <div class="form-group">
-                  <label for="rPattern">Recurrence Pattern <span class="required">*</span></label>
+                  <label for="rPattern">نمط التكرار <span class="required">*</span></label>
                   <select id="rPattern" required>
-                    <option value="">Select pattern</option>
-                    <option value="daily">Daily</option>
-                    <option value="weekdays">Weekdays (Mon–Fri)</option>
-                    <option value="weekly">Weekly (same day)</option>
+                    <option value="">اختر النمط</option>
+                    <option value="daily">يومياً</option>
+                    <option value="weekdays">أيام العمل (الأحد إلى الخميس)</option>
+                    <option value="weekly">أسبوعياً (نفس اليوم)</option>
                   </select>
                 </div>
               </div>
               <div class="form-row">
                 <div class="form-group">
-                  <label for="rStartDate">Start Date <span class="required">*</span></label>
+                  <label for="rStartDate">تاريخ البداية <span class="required">*</span></label>
                   <input type="date" id="rStartDate" required>
                 </div>
                 <div class="form-group">
-                  <label for="rEndDate">End Date <span class="required">*</span></label>
+                  <label for="rEndDate">تاريخ النهاية <span class="required">*</span></label>
                   <input type="date" id="rEndDate" required>
                 </div>
               </div>
               <div class="form-row">
                 <div class="form-group">
-                  <label for="rTime">Start Time <span class="required">*</span></label>
+                  <label for="rTime">وقت البداية <span class="required">*</span></label>
                   <input type="time" id="rTime" required>
                 </div>
                 <div class="form-group">
-                  <label for="rDuration">Duration <span class="required">*</span></label>
+                  <label for="rDuration">المدة <span class="required">*</span></label>
                   <select id="rDuration" required>
-                    <option value="">Select duration</option>
-                    <option value="30">30 minutes</option>
-                    <option value="60">1 hour</option>
-                    <option value="90">1.5 hours</option>
-                    <option value="120">2 hours</option>
+                    <option value="">اختر المدة</option>
+                    <option value="30">30 دقيقة</option>
+                    <option value="60">ساعة</option>
+                    <option value="90">ساعة ونصف</option>
+                    <option value="120">ساعتان</option>
                   </select>
                 </div>
               </div>
               <div class="form-row">
                 <div class="form-group">
-                  <label for="rPurpose">Meeting Purpose <span class="required">*</span></label>
-                  <input type="text" id="rPurpose" placeholder="e.g. Weekly Team Standup" required>
+                  <label for="rPurpose">عنوان الاجتماع <span class="required">*</span></label>
+                  <input type="text" id="rPurpose" placeholder="مثال: اجتماع الفريق الأسبوعي" required>
                 </div>
                 <div class="form-group">
-                  <label for="rCategory">Category</label>
+                  <label for="rCategory">الفئة</label>
                   <select id="rCategory">
-                    <option value="meeting">General Meeting</option>
-                    <option value="training">Training</option>
-                    <option value="workshop">Workshop</option>
-                    <option value="other">Other</option>
+                    <option value="meeting">اجتماع عام</option>
+                    <option value="training">تدريب</option>
+                    <option value="workshop">ورشة عمل</option>
+                    <option value="other">أخرى</option>
                   </select>
                 </div>
               </div>
               <button type="submit" class="btn btn-primary">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
-                Create Recurring Booking
+                إنشاء حجز متكرر
               </button>
             </form>
           </div>
@@ -302,7 +301,7 @@
       <!-- TAB: Rooms -->
       <div class="tab-panel" id="tab-rooms">
         <div class="card">
-          <div class="card-header"><div class="card-title"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg> Manage Rooms</div></div>
+          <div class="card-header"><div class="card-title"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg> إدارة الغرف</div></div>
           <div class="card-body">
             <div id="roomsManage">
               <div class="spinner spinner-dark"></div>
@@ -322,78 +321,78 @@
       <div class="tab-panel" id="tab-settings">
         <div class="two-col" style="align-items:start">
           <div class="card">
-            <div class="card-header"><div class="card-title"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg> Booking Rules</div></div>
+            <div class="card-header"><div class="card-title"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg> قواعد الحجز</div></div>
             <div class="card-body">
               <div class="form-group">
-                <label for="sOfficeStart">Office Hours Start</label>
+                <label for="sOfficeStart">بداية ساعات العمل</label>
                 <input type="time" id="sOfficeStart">
               </div>
               <div class="form-group">
-                <label for="sOfficeEnd">Office Hours End</label>
+                <label for="sOfficeEnd">نهاية ساعات العمل</label>
                 <input type="time" id="sOfficeEnd">
               </div>
               <div class="form-group">
-                <label for="sMaxDur">Max Booking Duration (minutes)</label>
+                <label for="sMaxDur">أقصى مدة للحجز (بالدقائق)</label>
                 <select id="sMaxDur">
-                  <option value="60">60 minutes</option>
-                  <option value="90">90 minutes</option>
-                  <option value="120">120 minutes (2 hours)</option>
-                  <option value="180">180 minutes (3 hours)</option>
-                  <option value="240">240 minutes (4 hours)</option>
+                  <option value="60">60 دقيقة</option>
+                  <option value="90">90 دقيقة</option>
+                  <option value="120">120 دقيقة (ساعتان)</option>
+                  <option value="180">180 دقيقة (3 ساعات)</option>
+                  <option value="240">240 دقيقة (4 ساعات)</option>
                 </select>
               </div>
               <div class="form-group">
-                <label for="sInterval">Booking Slot Interval (minutes)</label>
+                <label for="sInterval">الفاصل بين الأوقات (بالدقائق)</label>
                 <select id="sInterval">
-                  <option value="30">30 minutes</option>
-                  <option value="60">60 minutes (1 hour)</option>
+                  <option value="30">30 دقيقة</option>
+                  <option value="60">60 دقيقة (ساعة)</option>
                 </select>
               </div>
-              <button class="btn btn-primary" onclick="saveBookingRules()">Save Booking Rules</button>
+              <button class="btn btn-primary" onclick="saveBookingRules()">حفظ قواعد الحجز</button>
             </div>
           </div>
           <div class="card">
-            <div class="card-header"><div class="card-title"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg> Email Notifications</div></div>
+            <div class="card-header"><div class="card-title"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg> إشعارات البريد الإلكتروني</div></div>
             <div class="card-body">
 
               <!-- How it works info box -->
-              <div style="background:rgba(42,92,69,.07);border-left:3px solid var(--green);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:20px;font-size:13px;line-height:1.6;">
-                <strong style="color:var(--green);">How it works for employees:</strong><br>
-                Employees just enter their email when booking — no account, no password, no login needed. The system automatically sends them a confirmation email. You only need to do the one-time setup below.
+              <div style="background:rgba(76,107,82,.07);border-left:3px solid var(--green);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:20px;font-size:13px;line-height:1.6;">
+                <strong style="color:var(--green);">كيف يعمل للموظفين:</strong><br>
+                يكتب الموظف بريده عند الحجز فقط، بدون حساب أو كلمة مرور. يرسل النظام له تأكيداً تلقائياً. تحتاج فقط إلى الإعداد لمرة واحدة أدناه.
               </div>
 
               <div class="form-group">
                 <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;">
                   <input type="checkbox" id="sEmailEnabled" style="width:auto;margin:0;">
-                  <span>Enable email confirmations &amp; reminders</span>
+                  <span>تفعيل رسائل التأكيد والتذكير</span>
                 </label>
               </div>
 
               <!-- Brevo setup (recommended — no domain verification needed) -->
               <div style="border:2px solid var(--green);border-radius:var(--radius-md);padding:16px;margin-bottom:16px;">
                 <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-                  <span style="background:var(--green);color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;">RECOMMENDED</span>
-                  <span style="font-size:14px;font-weight:700;color:var(--text-primary);">Brevo — Free, sends to any email, no domain needed</span>
+                  <span style="background:var(--green);color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;">موصى به</span>
+                  <span style="font-size:14px;font-weight:700;color:var(--text-primary);">Brevo: مجاني، يرسل لأي بريد، ولا يحتاج نطاقاً</span>
                 </div>
                 <p style="font-size:13px;color:var(--text-secondary);margin:0 0 12px;">
-                  300 free emails per day. Works immediately — no domain verification, no credit card. Takes 3 minutes to set up.
+                  300 رسالة مجانية يومياً. يعمل فوراً بدون توثيق نطاق أو بطاقة ائتمان، والإعداد يأخذ 3 دقائق.
                 </p>
                 <ol style="font-size:13px;color:var(--text-secondary);margin:0 0 14px;padding-left:18px;line-height:1.9;">
-                  <li>Go to <a href="https://app.brevo.com/account/register" target="_blank" style="color:var(--navy);font-weight:600;">app.brevo.com/account/register</a> — free, no credit card</li>
-                  <li>Sign up and click the verification link in the email they send you</li>
-                  <li>Once logged in, click your name (top right) → <strong>SMTP &amp; API</strong></li>
-                  <li>Click the <strong>SMTP</strong> tab → click <strong>Generate a new SMTP key</strong></li>
-                  <li>Copy your <strong>login email</strong> and the <strong>SMTP key</strong> they generate</li>
-                  <li>Paste both below and click <strong>Save &amp; Enable</strong></li>
+                  <li>افتح <a href="https://app.brevo.com/account/register" target="_blank" style="color:var(--navy);font-weight:600;">app.brevo.com/account/register</a> ، مجاناً وبدون بطاقة</li>
+                  <li>سجّل واضغط رابط التفعيل في الرسالة التي تصلك</li>
+                  <li>بعد الدخول اضغط اسمك (أعلى الصفحة) ← <strong>SMTP &amp; API</strong></li>
+                  <li>اضغط تبويب <strong>SMTP</strong> ← ثم اضغط <strong>إنشاء مفتاح SMTP جديد (Generate a new SMTP key)</strong></li>
+                  <li>انسخ <strong>بريد الدخول</strong> و <strong>مفتاح SMTP</strong> الذي يُنشأ</li>
+                  <li>الصقهما أدناه ثم اضغط <strong>حفظ وتفعيل</strong></li>
                 </ol>
                 <div class="form-row">
                   <div class="form-group" style="margin-bottom:10px;">
-                    <label for="sBrevoUser" style="font-weight:600;">Your Brevo Login Email</label>
+                    <label for="sBrevoUser" style="font-weight:600;">بريد الدخول إلى Brevo</label>
                     <input type="email" id="sBrevoUser" placeholder="your@email.com">
                   </div>
                   <div class="form-group" style="margin-bottom:10px;">
-                    <label for="sBrevoKey" style="font-weight:600;">Brevo SMTP Key</label>
-                    <input type="password" id="sBrevoKey" placeholder="xsmtp-xxxxxxxxxxxxxxx  (leave blank to keep existing)">
+                    <label for="sBrevoKey" style="font-weight:600;">مفتاح Brevo SMTP</label>
+                    <input type="password" id="sBrevoKey" placeholder="xsmtp-xxxxxxxxxxxxxxx  (اتركه فارغاً للإبقاء على الموجود)">
                   </div>
                 </div>
                 <div id="sBrevoStatus" style="font-size:12px;margin-bottom:10px;"></div>
@@ -406,34 +405,34 @@
               <!-- Resend setup (needs domain verified) -->
               <details style="margin-bottom:16px;">
                 <summary style="cursor:pointer;font-size:13px;font-weight:600;color:var(--text-muted);padding:8px 0;user-select:none;">
-                  ▸ Already using Resend? (requires domain verification at resend.com/domains)
+                  ▸ تستخدم Resend؟ (يتطلب توثيق النطاق في resend.com/domains)
                 </summary>
                 <div style="padding-top:12px;">
-                  <p style="font-size:12px;color:var(--text-muted);margin-bottom:10px;">Note: Resend only sends to any address after you verify your domain (e.g. oaktree.com) in their dashboard.</p>
+                  <p style="font-size:12px;color:var(--text-muted);margin-bottom:10px;">ملاحظة: لا يرسل Resend إلى أي عنوان إلا بعد توثيق نطاقك (مثل oaktree.com) في لوحته.</p>
                   <div class="form-group" style="margin-bottom:10px;">
-                    <label for="sResendKey" style="font-weight:600;">Resend API Key</label>
-                    <input type="password" id="sResendKey" placeholder="re_xxxxxxxxxxxxxxxxxxxx  (leave blank to keep existing)">
+                    <label for="sResendKey" style="font-weight:600;">مفتاح Resend API</label>
+                    <input type="password" id="sResendKey" placeholder="re_xxxxxxxxxxxxxxxxxxxx  (اتركه فارغاً للإبقاء على الموجود)">
                     <div id="sResendKeyStatus" style="font-size:12px;margin-top:4px;"></div>
                   </div>
-                  <button class="btn btn-outline btn-sm" onclick="saveResendKey()">Save Resend Key</button>
+                  <button class="btn btn-outline btn-sm" onclick="saveResendKey()">حفظ مفتاح Resend</button>
                 </div>
               </details>
 
               <!-- Outlook / Work email setup -->
               <div style="border:2px solid var(--navy);border-radius:var(--radius-md);padding:16px;margin-bottom:16px;">
                 <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-                  <span style="background:var(--navy);color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;">FREE</span>
-                  <span style="font-size:14px;font-weight:700;color:var(--text-primary);">Use your existing Outlook / Work email</span>
+                  <span style="background:var(--navy);color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;">مجاني</span>
+                  <span style="font-size:14px;font-weight:700;color:var(--text-primary);">استخدم بريد العمل / Outlook الحالي</span>
                 </div>
-                <p style="font-size:13px;color:var(--text-secondary);margin:0 0 14px;">No new accounts. Uses the email account you already have at work. Employees will receive confirmations from your work email address.</p>
+                <p style="font-size:13px;color:var(--text-secondary);margin:0 0 14px;">بدون حسابات جديدة. يستخدم بريد العمل الموجود لديك، وسيصل الموظفين التأكيد من هذا البريد.</p>
                 <div class="form-row">
                   <div class="form-group" style="margin-bottom:10px;">
-                    <label for="sSmtpUser" style="font-weight:600;">Your Work Email Address</label>
-                    <input type="email" id="sSmtpUser" placeholder="yourname@oaktree.com">
+                    <label for="sSmtpUser" style="font-weight:600;">بريد العمل</label>
+                    <input type="email" id="sSmtpUser" placeholder="name@oaktree.com">
                   </div>
                   <div class="form-group" style="margin-bottom:10px;">
-                    <label for="sSmtpPass" style="font-weight:600;">Your Email Password</label>
-                    <input type="password" id="sSmtpPass" placeholder="Leave blank to keep existing">
+                    <label for="sSmtpPass" style="font-weight:600;">كلمة مرور البريد</label>
+                    <input type="password" id="sSmtpPass" placeholder="اتركه فارغاً للإبقاء على الموجود">
                   </div>
                 </div>
                 <div id="smtpPresetHint" style="margin-bottom:12px;font-size:12px;color:var(--text-secondary);display:none;background:var(--beige);border-radius:var(--radius-sm);padding:10px 12px;line-height:1.6;"></div>
@@ -441,7 +440,7 @@
                 <input type="hidden" id="sSmtpPort" value="587">
                 <input type="hidden" id="sSmtpFrom">
                 <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
-                  <span style="font-size:12px;color:var(--text-muted);">Or use:</span>
+                  <span style="font-size:12px;color:var(--text-muted);">أو استخدم:</span>
                   <button type="button" class="btn btn-outline btn-sm" onclick="smtpPreset('outlook')">Outlook / Office 365</button>
                   <button type="button" class="btn btn-outline btn-sm" onclick="smtpPreset('gmail')">Gmail</button>
                 </div>
@@ -454,12 +453,12 @@
 
               <!-- Test Email -->
               <div style="border-top:1px solid var(--grey-border);padding-top:16px;">
-                <div style="font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:8px;">Send a test email</div>
+                <div style="font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:8px;">إرسال رسالة اختبار</div>
                 <div style="display:flex;gap:8px;flex-wrap:wrap;">
                   <input type="email" id="testEmailAddr" placeholder="your@email.com" style="flex:1;min-width:180px;margin-bottom:0;">
                   <button class="btn btn-gold btn-sm" onclick="sendTestEmail()" style="white-space:nowrap;">
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-                    Send Test
+                    إرسال اختبار
                   </button>
                 </div>
                 <div id="testEmailResult" style="margin-top:8px;font-size:12px;line-height:1.6;"></div>
@@ -467,38 +466,38 @@
             </div>
           </div>
           <div class="card">
-            <div class="card-header"><div class="card-title"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg> Branding</div></div>
+            <div class="card-header"><div class="card-title"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg> الهوية</div></div>
             <div class="card-body">
               <div class="form-group">
-                <label for="sCompanyName">Company Name</label>
+                <label for="sCompanyName">اسم الشركة</label>
                 <input type="text" id="sCompanyName" placeholder="Oaktree Group">
               </div>
               <div class="form-group">
-                <label for="sLogoText">Logo Monogram (2–3 letters)</label>
+                <label for="sLogoText">الحروف المختصرة للشعار (2 إلى 3 أحرف)</label>
                 <input type="text" id="sLogoText" placeholder="OG" maxlength="3">
-                <div class="input-hint">Used as fallback text in the sidebar when no logo image is uploaded.</div>
+                <div class="input-hint">تظهر في القائمة الجانبية عند عدم رفع صورة شعار.</div>
               </div>
-              <button class="btn btn-primary" onclick="saveBranding()" style="margin-bottom:20px;">Save Branding</button>
+              <button class="btn btn-primary" onclick="saveBranding()" style="margin-bottom:20px;">حفظ الهوية</button>
 
               <div style="border-top:1px solid var(--grey-border);padding-top:18px;">
-                <div style="font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:4px;">Company Logo Image</div>
-                <div class="input-hint" style="margin-bottom:12px;">Upload an image to replace the text monogram in the sidebar. Recommended: square, transparent background. Max 2 MB (PNG, JPG, SVG, WebP).</div>
+                <div style="font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:4px;">صورة شعار الشركة</div>
+                <div class="input-hint" style="margin-bottom:12px;">ارفع صورة لتحل محل الحروف المختصرة في القائمة الجانبية. يُفضل: خلفية شفافة، حتى 2 ميجابايت (PNG, JPG, SVG, WebP).</div>
 
                 <!-- Current logo preview -->
                 <div id="currentLogoPreview" style="margin-bottom:12px;min-height:20px;display:flex;align-items:center;gap:12px;">
-                  <span style="font-size:12px;color:var(--text-muted);">No logo uploaded</span>
+                  <span style="font-size:12px;color:var(--text-muted);">لم يُرفع شعار</span>
                 </div>
 
                 <!-- Upload / Remove buttons -->
                 <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
                   <label class="btn btn-outline btn-sm" style="cursor:pointer;margin:0;">
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                    Choose Logo File
+                    اختر ملف الشعار
                     <input type="file" id="logoFileInput" accept="image/*" style="display:none" onchange="uploadLogo(this)">
                   </label>
                   <button class="btn btn-sm" id="logoRemoveBtn" onclick="removeLogo()" style="display:none;background:var(--danger-bg);color:var(--danger);border-color:var(--danger);">
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
-                    Remove Logo
+                    حذف الشعار
                   </button>
                 </div>
                 <div id="logoUploadStatus" style="margin-top:8px;font-size:12px;"></div>
@@ -512,14 +511,14 @@
       <div class="tab-panel" id="tab-audit">
         <div class="card">
           <div class="card-header">
-            <div class="card-title"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg> Audit Trail</div>
-            <button class="btn btn-outline btn-sm" onclick="loadAuditLog()">Refresh</button>
+            <div class="card-title"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg> سجل العمليات</div>
+            <button class="btn btn-outline btn-sm" onclick="loadAuditLog()">تحديث</button>
           </div>
           <div id="auditContent">
             <div class="empty-state" style="padding:48px 0">
               <div class="empty-state-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
-              <div class="empty-state-title">No audit entries yet</div>
-              <div class="empty-state-desc">All admin actions will be recorded here.</div>
+              <div class="empty-state-title">لا توجد عمليات مسجلة</div>
+              <div class="empty-state-desc">ستُسجَّل كل إجراءات الإدارة هنا.</div>
             </div>
           </div>
         </div>
@@ -533,20 +532,20 @@
 <div class="modal-overlay" id="overrideModal">
   <div class="modal">
     <div class="modal-header">
-      <div class="modal-title">Override Booking</div>
+      <div class="modal-title">إلغاء حجز بالأولوية</div>
       <button class="modal-close" id="overrideClose"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     </div>
     <div class="modal-body">
       <div id="overrideDetail" class="booking-detail mb-2"></div>
       <div class="form-group mt-2">
-        <label for="overrideReason">Reason for Override <span class="required">*</span></label>
-        <textarea id="overrideReason" rows="3" placeholder="e.g. Priority board meeting, executive use…"></textarea>
+        <label for="overrideReason">سبب الإلغاء بالأولوية <span class="required">*</span></label>
+        <textarea id="overrideReason" rows="3" placeholder="مثال: اجتماع مجلس الإدارة، استخدام تنفيذي…"></textarea>
       </div>
-      <p style="font-size:13px;color:var(--text-muted);">The employee will be notified by email that their booking has been overridden.</p>
+      <p style="font-size:13px;color:var(--text-muted);">سيصل الموظف إشعار بالبريد بأن حجزه أُلغي بالأولوية.</p>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-outline" id="overrideCancelBtn">Cancel</button>
-      <button class="btn btn-danger" id="overrideConfirmBtn">Override Booking</button>
+      <button class="btn btn-outline" id="overrideCancelBtn">إلغاء</button>
+      <button class="btn btn-danger" id="overrideConfirmBtn">إلغاء حجز بالأولوية</button>
     </div>
   </div>
 </div>
@@ -555,19 +554,19 @@
 <div class="modal-overlay" id="adminCancelModal">
   <div class="modal">
     <div class="modal-header">
-      <div class="modal-title">Cancel Booking</div>
+      <div class="modal-title">إلغاء الحجز</div>
       <button class="modal-close" id="adminCancelClose"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     </div>
     <div class="modal-body">
       <div id="adminCancelDetail" class="booking-detail mb-2"></div>
       <div class="form-group mt-2">
-        <label for="adminCancelReason">Reason (optional)</label>
-        <textarea id="adminCancelReason" rows="2" placeholder="Reason for cancellation…"></textarea>
+        <label for="adminCancelReason">السبب (اختياري)</label>
+        <textarea id="adminCancelReason" rows="2" placeholder="سبب الإلغاء…"></textarea>
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-outline" id="adminCancelNoBtn">Keep Booking</button>
-      <button class="btn btn-danger" id="adminCancelYesBtn">Cancel Booking</button>
+      <button class="btn btn-outline" id="adminCancelNoBtn">الاحتفاظ بالحجز</button>
+      <button class="btn btn-danger" id="adminCancelYesBtn">إلغاء الحجز</button>
     </div>
   </div>
 </div>

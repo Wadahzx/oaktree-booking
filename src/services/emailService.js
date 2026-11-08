@@ -1,7 +1,13 @@
 const nodemailer = require('nodemailer');
 const { all, run } = require('../database/db');
+const { buildIcs } = require('./ics');
 
 const _fetch = typeof fetch !== 'undefined' ? fetch : null;
+
+// Brand palette (from the Oaktree brand kit)
+const NAVY  = '#1C2D3C';
+const OLIVE = '#726944';
+const SAND  = '#F2F0EA';
 
 async function getConfig() {
   const rows = await all('SELECT key, value FROM admin_settings');
@@ -15,8 +21,16 @@ function getResendApiKey(cfg) {
   return null;
 }
 
-async function sendViaResendApi(apiKey, fromAddress, to, subject, html) {
-  const payload = JSON.stringify({ from: fromAddress, to: [to], subject, html });
+async function sendViaResendApi(apiKey, fromAddress, to, subject, html, ics) {
+  const body = { from: fromAddress, to: [to], subject, html };
+  if (ics) {
+    body.attachments = [{
+      filename: 'invite.ics',
+      content: Buffer.from(ics.content, 'utf-8').toString('base64'),
+      content_type: `text/calendar; charset=utf-8; method=${ics.method}`
+    }];
+  }
+  const payload = JSON.stringify(body);
   const headers = { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' };
 
   if (_fetch) {
@@ -32,11 +46,11 @@ async function sendViaResendApi(apiKey, fromAddress, to, subject, html) {
       hostname: 'api.resend.com', port: 443, path: '/emails', method: 'POST',
       headers: { ...headers, 'Content-Length': Buffer.byteLength(payload) }
     }, res => {
-      let body = '';
-      res.on('data', c => body += c);
+      let out = '';
+      res.on('data', c => out += c);
       res.on('end', () => {
-        if (res.statusCode >= 200 && res.statusCode < 300) resolve(JSON.parse(body));
-        else reject(new Error(`Resend: ${body}`));
+        if (res.statusCode >= 200 && res.statusCode < 300) resolve(JSON.parse(out));
+        else reject(new Error(`Resend: ${out}`));
       });
     });
     req.setTimeout(15000, () => { req.destroy(); reject(new Error('Resend timeout')); });
@@ -65,13 +79,19 @@ function getTransporter(cfg) {
 }
 
 function getSenderAddress(cfg) {
-  if (cfg.brevo_smtp_key && cfg.brevo_smtp_user) return `"Oaktree Group Bookings" <${cfg.brevo_smtp_user}>`;
+  if (cfg.brevo_smtp_key && cfg.brevo_smtp_user) return `"Oaktree Group" <${cfg.brevo_smtp_user}>`;
   const apiKey = getResendApiKey(cfg);
-  if (apiKey) return `Oaktree Group Bookings <${cfg.smtp_from || 'onboarding@resend.dev'}>`;
-  return `"Oaktree Group Bookings" <${cfg.smtp_from || 'noreply@oaktree.com'}>`;
+  if (apiKey) return `Oaktree Group <${cfg.smtp_from || 'onboarding@resend.dev'}>`;
+  return `"Oaktree Group" <${cfg.smtp_from || 'noreply@oaktree.com'}>`;
 }
 
-async function sendEmail(to, subject, html) {
+/**
+ * @param {string} to
+ * @param {string} subject
+ * @param {string} html
+ * @param {{method:string, content:string}=} ics  optional calendar invitation
+ */
+async function sendEmail(to, subject, html, ics) {
   const cfg = await getConfig();
   const apiKey = getResendApiKey(cfg);
   // Auto-enable if RESEND_API_KEY env var is set, otherwise check DB setting
@@ -83,8 +103,8 @@ async function sendEmail(to, subject, html) {
     const fromEnv  = process.env.RESEND_FROM || 'fathima@oaktree.sa';
     const fromDb   = cfg.smtp_from && cfg.smtp_from !== 'noreply@oaktree.com' ? cfg.smtp_from : null;
     const fromAddr = fromDb || fromEnv;
-    const from = `Oaktree Group Bookings <${fromAddr}>`;
-    await sendViaResendApi(apiKey, from, to, subject, html);
+    const from = `Oaktree Group <${fromAddr}>`;
+    await sendViaResendApi(apiKey, from, to, subject, html, ics);
     console.log(`[EMAIL] Sent via Resend API → ${to}`);
     return;
   }
@@ -94,116 +114,171 @@ async function sendEmail(to, subject, html) {
   }
   const t = getTransporter(cfg);
   if (!t) { console.log(`[EMAIL] No email service configured.`); return; }
-  await t.sendMail({ from: getSenderAddress(cfg), to, subject, html });
+  const mail = { from: getSenderAddress(cfg), to, subject, html };
+  if (ics) mail.icalEvent = { method: ics.method, content: ics.content };
+  await t.sendMail(mail);
   console.log(`[EMAIL] Sent via SMTP → ${to}`);
 }
 
+// ── Formatting (Arabic, Latin digits) ───────────────────────
 function fmt12(t) {
   const [h, m] = t.split(':').map(Number);
-  return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`;
+  return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h >= 12 ? 'م' : 'ص'}`;
 }
 function fmtDate(d) {
-  return new Date(d + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  return new Date(d + 'T12:00:00').toLocaleDateString('ar-SA-u-nu-latn-ca-gregory', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+  });
+}
+const esc = s => String(s == null ? '' : s)
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+const baseStyle   = `font-family:'Segoe UI',Tahoma,Arial,sans-serif;max-width:600px;margin:0 auto;background:${SAND};padding:20px;direction:rtl;text-align:right;`;
+const headerStyle = (bg) => `background:${bg};color:#fff;padding:28px 30px;border-radius:8px 8px 0 0;text-align:center;`;
+const bodyStyle   = `background:#fff;padding:32px;border-radius:0 0 8px 8px;border:1px solid #e3e0d6;border-top:none;direction:rtl;text-align:right;`;
+const tableStyle  = `width:100%;border-collapse:collapse;`;
+const tdLabel     = `padding:8px 0;color:#6b6b6b;width:34%;font-size:14px;`;
+const tdValue     = `padding:8px 0;font-weight:600;color:${NAVY};font-size:14px;`;
+const footerStyle = `color:#9a9a9a;font-size:12px;text-align:center;margin-top:20px;`;
+
+function brandHeader(subtitle, bg = NAVY) {
+  const logo = process.env.APP_URL
+    ? `<img src="${process.env.APP_URL.replace(/\/$/, '')}/img/oaktree-logo-white.png" alt="Oaktree" height="34" style="height:34px;">`
+    : `<span style="font-family:Georgia,'Times New Roman',serif;font-size:30px;letter-spacing:.5px;direction:ltr;display:inline-block;">Oaktree</span>`;
+  return `<div style="${headerStyle(bg)}">${logo}<p style="margin:10px 0 0;opacity:.85;font-size:14px;">${subtitle}</p></div>`;
 }
 
-const baseStyle  = `font-family:'Segoe UI',Arial,sans-serif;max-width:600px;margin:0 auto;background:#f4f4f6;padding:20px;`;
-const headerStyle = (bg) => `background:${bg};color:white;padding:30px;border-radius:8px 8px 0 0;text-align:center;`;
-const bodyStyle  = `background:#fff;padding:32px;border-radius:0 0 8px 8px;border:1px solid #e0e0e0;border-top:none;`;
-const tableStyle = `width:100%;border-collapse:collapse;`;
-const tdLabel    = `padding:8px 0;color:#666;width:38%;font-size:14px;`;
-const tdValue    = `padding:8px 0;font-weight:600;color:#1B2A4A;font-size:14px;`;
-const footerStyle = `color:#aaa;font-size:12px;text-align:center;margin-top:20px;`;
-
-function bookingTable(b, bg, border) {
-  return `<div style="background:${bg};border-left:4px solid ${border};padding:16px;margin:20px 0;border-radius:4px;">
+function bookingTable(b, bg, border, extraRows = '') {
+  return `<div style="background:${bg};border-right:4px solid ${border};padding:16px;margin:20px 0;border-radius:4px;">
     <table style="${tableStyle}">
-      <tr><td style="${tdLabel}">Room</td><td style="${tdValue}">${b.room_name || b.room_id}</td></tr>
-      <tr><td style="${tdLabel}">Date</td><td style="${tdValue}">${fmtDate(b.date)}</td></tr>
-      <tr><td style="${tdLabel}">Time</td><td style="${tdValue}">${fmt12(b.start_time)} – ${fmt12(b.end_time)}</td></tr>
-      <tr><td style="${tdLabel}">Duration</td><td style="${tdValue}">${b.duration} minutes</td></tr>
-      <tr><td style="${tdLabel}">Purpose</td><td style="${tdValue}">${b.purpose}</td></tr>
-      <tr><td style="${tdLabel}">Booking ID</td><td style="padding:8px 0;font-family:monospace;color:#888;font-size:12px;">${b.id}</td></tr>
+      <tr><td style="${tdLabel}">القاعة</td><td style="${tdValue}">${esc(b.room_name || b.room_id)}</td></tr>
+      <tr><td style="${tdLabel}">التاريخ</td><td style="${tdValue}">${fmtDate(b.date)}</td></tr>
+      <tr><td style="${tdLabel}">الوقت</td><td style="${tdValue}">${fmt12(b.start_time)} إلى ${fmt12(b.end_time)}</td></tr>
+      <tr><td style="${tdLabel}">المدة</td><td style="${tdValue}">${b.duration} دقيقة</td></tr>
+      <tr><td style="${tdLabel}">عنوان الاجتماع</td><td style="${tdValue}">${esc(b.purpose)}</td></tr>
+      ${extraRows}
     </table>
   </div>`;
 }
 
+function parseAttendees(b) {
+  try { return JSON.parse(b.attendees || '[]') || []; } catch { return []; }
+}
+
+const sequenceOf = b => Math.floor(new Date(b.updated_at || Date.now()).getTime() / 60000);
+
+// ── Organizer confirmation (with calendar invite) ───────────
 async function sendBookingConfirmation(booking) {
+  const attendees = parseAttendees(booking);
+  const names = attendees.map(a => esc(a.name || a.email)).join('، ');
   const html = `<div style="${baseStyle}">
-    <div style="${headerStyle('#1B2A4A')}">
-      <h1 style="margin:0;font-size:22px;">Oaktree Group</h1>
-      <p style="margin:6px 0 0;opacity:.8;font-size:14px;">Meeting Room Booking Confirmation</p>
-    </div>
+    ${brandHeader('تأكيد حجز قاعة اجتماعات')}
     <div style="${bodyStyle}">
-      <h2 style="color:#2A5C45;margin-top:0;">Booking Confirmed</h2>
-      <p>Dear ${booking.employee_name},</p>
-      <p>Your meeting room has been successfully booked. Here are your booking details:</p>
-      ${bookingTable(booking, '#f0f7f4', '#2A5C45')}
-      <p style="color:#666;font-size:14px;">You will receive a reminder 15 minutes before your meeting starts.</p>
-      <p style="color:#666;font-size:14px;">To cancel or modify this booking, visit <strong>My Bookings</strong> on the Oaktree booking system.</p>
-      <p style="${footerStyle}">Oaktree Group Meeting Room Booking System</p>
+      <h2 style="color:${OLIVE};margin-top:0;">تم تأكيد الحجز</h2>
+      <p>مرحباً ${esc(booking.employee_name)}،</p>
+      <p>تم حجز القاعة بنجاح. تفاصيل الحجز:</p>
+      ${bookingTable(booking, SAND, OLIVE, attendees.length ? `<tr><td style="${tdLabel}">المدعوون</td><td style="${tdValue}">${names}</td></tr>` : '')}
+      <p style="color:#6b6b6b;font-size:14px;">${attendees.length ? 'أُرسلت دعوة الاجتماع إلى المشاركين، وأُرفقت دعوة التقويم بهذه الرسالة. ' : ''}سيصلك تذكير قبل بدء الاجتماع بـ 15 دقيقة.</p>
+      <p style="color:#6b6b6b;font-size:14px;">لإلغاء الحجز أو تعديله، افتح صفحة <strong>حجوزاتي</strong> في نظام الحجز.</p>
+      <p style="${footerStyle}">نظام حجز غرف الاجتماعات | Oaktree Group</p>
     </div>
   </div>`;
-  await sendEmail(booking.employee_email, `Booking Confirmed: ${booking.room_name} – ${fmtDate(booking.date)}`, html);
+  const ics = { method: 'REQUEST', content: buildIcs({ booking, attendees, method: 'REQUEST', sequence: sequenceOf(booking) }) };
+  await sendEmail(booking.employee_email, `تأكيد الحجز: ${booking.room_name}، ${fmtDate(booking.date)}`, html, ics);
+}
+
+// ── Invitation to each attendee (shows as a calendar invite) ─
+async function sendMeetingInvitations(booking, { updated = false } = {}) {
+  const attendees = parseAttendees(booking);
+  if (!attendees.length) return;
+  const ics = { method: 'REQUEST', content: buildIcs({ booking, attendees, method: 'REQUEST', sequence: sequenceOf(booking) }) };
+
+  for (const a of attendees) {
+    const html = `<div style="${baseStyle}">
+      ${brandHeader(updated ? 'تحديث دعوة اجتماع' : 'دعوة اجتماع', OLIVE)}
+      <div style="${bodyStyle}">
+        <h2 style="color:${NAVY};margin-top:0;">لديك دعوة اجتماع في ${esc(booking.room_name)}</h2>
+        <p>مرحباً ${esc(a.name || '')}،</p>
+        <p>${updated ? 'تم تعديل موعد الاجتماع التالي' : 'دعاك'} <strong>${esc(booking.employee_name)}</strong> ${updated ? '' : 'إلى اجتماع'}:</p>
+        ${bookingTable(booking, SAND, OLIVE, `<tr><td style="${tdLabel}">المنظم</td><td style="${tdValue}">${esc(booking.employee_name)}</td></tr>`)}
+        <p style="color:#6b6b6b;font-size:14px;">أُرفقت دعوة تقويم (ملف .ics) بهذه الرسالة؛ افتحها لإضافة الاجتماع إلى تقويمك والرد عليه.</p>
+        <p style="${footerStyle}">نظام حجز غرف الاجتماعات | Oaktree Group</p>
+      </div>
+    </div>`;
+    try {
+      await sendEmail(a.email, `دعوة اجتماع: ${booking.purpose}، ${booking.room_name}`, html, ics);
+    } catch (e) {
+      console.error('Invite email err:', a.email, e.message);
+    }
+  }
 }
 
 async function sendCancellationNotification(booking, reason) {
-  const html = `<div style="${baseStyle}">
-    <div style="${headerStyle('#1B2A4A')}">
-      <h1 style="margin:0;font-size:22px;">Oaktree Group</h1>
-      <p style="margin:6px 0 0;opacity:.8;font-size:14px;">Booking Cancellation</p>
-    </div>
+  const attendees = parseAttendees(booking);
+  const html = (name) => `<div style="${baseStyle}">
+    ${brandHeader('إلغاء حجز')}
     <div style="${bodyStyle}">
-      <h2 style="color:#c0392b;margin-top:0;">Booking Cancelled</h2>
-      <p>Dear ${booking.employee_name},</p>
-      <p>Your meeting room booking has been cancelled.</p>
+      <h2 style="color:#c0392b;margin-top:0;">تم إلغاء الحجز</h2>
+      <p>مرحباً ${esc(name)}،</p>
+      <p>تم إلغاء حجز القاعة / الاجتماع التالي.</p>
       ${bookingTable(booking, '#fff3f3', '#c0392b')}
-      ${reason ? `<p style="color:#666;font-size:14px;"><strong>Reason:</strong> ${reason}</p>` : ''}
-      <p style="${footerStyle}">Oaktree Group Meeting Room Booking System</p>
+      ${reason ? `<p style="color:#6b6b6b;font-size:14px;"><strong>السبب:</strong> ${esc(reason)}</p>` : ''}
+      <p style="${footerStyle}">نظام حجز غرف الاجتماعات | Oaktree Group</p>
     </div>
   </div>`;
-  await sendEmail(booking.employee_email, `Booking Cancelled: ${booking.room_name || booking.room_id} – ${fmtDate(booking.date)}`, html);
+  const ics = { method: 'CANCEL', content: buildIcs({ booking, attendees, method: 'CANCEL', sequence: sequenceOf(booking) + 1 }) };
+  const subject = `إلغاء الحجز: ${booking.room_name || booking.room_id}، ${fmtDate(booking.date)}`;
+  await sendEmail(booking.employee_email, subject, html(booking.employee_name), ics);
+  for (const a of attendees) {
+    try { await sendEmail(a.email, `إلغاء اجتماع: ${booking.purpose}`, html(a.name || ''), ics); }
+    catch (e) { console.error('Cancel email err:', a.email, e.message); }
+  }
 }
 
 async function sendOverrideNotification(booking, reason) {
   const html = `<div style="${baseStyle}">
-    <div style="${headerStyle('#1B2A4A')}">
-      <h1 style="margin:0;font-size:22px;">Oaktree Group</h1>
-      <p style="margin:6px 0 0;opacity:.8;font-size:14px;">Important: Booking Override Notice</p>
-    </div>
+    ${brandHeader('تنبيه مهم: إلغاء حجز بالأولوية')}
     <div style="${bodyStyle}">
-      <h2 style="color:#e67e22;margin-top:0;">Your Booking Has Been Overridden</h2>
-      <p>Dear ${booking.employee_name},</p>
-      <p>Your meeting room booking has been overridden by administration for priority use.</p>
+      <h2 style="color:#e67e22;margin-top:0;">تم إلغاء حجزك</h2>
+      <p>مرحباً ${esc(booking.employee_name)}،</p>
+      <p>ألغت الإدارة حجزك لإتاحة القاعة لاستخدام ذي أولوية.</p>
       ${bookingTable(booking, '#fff8f0', '#e67e22')}
-      ${reason ? `<div style="background:#fff8f0;border-left:4px solid #e67e22;padding:12px;border-radius:4px;margin-bottom:16px;"><strong>Reason:</strong> ${reason}</div>` : ''}
-      <p>Please book an alternative time slot at your earliest convenience.</p>
-      <p style="${footerStyle}">Oaktree Group Meeting Room Booking System</p>
+      ${reason ? `<div style="background:#fff8f0;border-right:4px solid #e67e22;padding:12px;border-radius:4px;margin-bottom:16px;"><strong>السبب:</strong> ${esc(reason)}</div>` : ''}
+      <p>نأمل حجز موعد بديل في أقرب وقت.</p>
+      <p style="${footerStyle}">نظام حجز غرف الاجتماعات | Oaktree Group</p>
     </div>
   </div>`;
-  await sendEmail(booking.employee_email, `IMPORTANT: Your Booking Has Been Overridden – ${booking.room_name || booking.room_id}`, html);
+  const attendees = parseAttendees(booking);
+  const ics = { method: 'CANCEL', content: buildIcs({ booking, attendees, method: 'CANCEL', sequence: sequenceOf(booking) + 1 }) };
+  await sendEmail(booking.employee_email, `مهم: تم إلغاء حجزك، ${booking.room_name || booking.room_id}`, html, ics);
+  for (const a of attendees) {
+    try { await sendEmail(a.email, `إلغاء اجتماع: ${booking.purpose}`, html, ics); }
+    catch (e) { console.error('Override email err:', a.email, e.message); }
+  }
 }
 
 async function sendReminderEmail(booking) {
-  const html = `<div style="${baseStyle}">
-    <div style="${headerStyle('#2A5C45')}">
-      <h1 style="margin:0;font-size:22px;">Oaktree Group</h1>
-      <p style="margin:6px 0 0;opacity:.8;font-size:14px;">Meeting Reminder – 15 Minutes</p>
-    </div>
-    <div style="${bodyStyle}">
-      <h2 style="color:#2A5C45;margin-top:0;">Your Meeting Starts in 15 Minutes</h2>
-      <p>Dear ${booking.employee_name},</p>
-      <p>This is a friendly reminder that your meeting room booking starts shortly.</p>
-      <div style="background:#f0f7f4;border-left:4px solid #2A5C45;padding:16px;margin:20px 0;border-radius:4px;">
-        <table style="${tableStyle}">
-          <tr><td style="${tdLabel}">Room</td><td style="${tdValue}">${booking.room_name}</td></tr>
-          <tr><td style="${tdLabel}">Time</td><td style="${tdValue}">${fmt12(booking.start_time)} – ${fmt12(booking.end_time)}</td></tr>
-          <tr><td style="${tdLabel}">Purpose</td><td style="${tdValue}">${booking.purpose}</td></tr>
-        </table>
+  const recipients = [{ name: booking.employee_name, email: booking.employee_email }, ...parseAttendees(booking)];
+  for (const r of recipients) {
+    const html = `<div style="${baseStyle}">
+      ${brandHeader('تذكير بالاجتماع قبل 15 دقيقة', OLIVE)}
+      <div style="${bodyStyle}">
+        <h2 style="color:${OLIVE};margin-top:0;">يبدأ اجتماعك بعد 15 دقيقة</h2>
+        <p>مرحباً ${esc(r.name || '')}،</p>
+        <p>تذكير بأن اجتماعك سيبدأ قريباً.</p>
+        <div style="background:${SAND};border-right:4px solid ${OLIVE};padding:16px;margin:20px 0;border-radius:4px;">
+          <table style="${tableStyle}">
+            <tr><td style="${tdLabel}">القاعة</td><td style="${tdValue}">${esc(booking.room_name)}</td></tr>
+            <tr><td style="${tdLabel}">الوقت</td><td style="${tdValue}">${fmt12(booking.start_time)} إلى ${fmt12(booking.end_time)}</td></tr>
+            <tr><td style="${tdLabel}">عنوان الاجتماع</td><td style="${tdValue}">${esc(booking.purpose)}</td></tr>
+          </table>
+        </div>
+        <p style="${footerStyle}">هذا تذكير تلقائي من نظام حجز غرف الاجتماعات | Oaktree Group</p>
       </div>
-      <p style="${footerStyle}">This is an automated reminder from the Oaktree Group Meeting Room Booking System.</p>
-    </div>
-  </div>`;
-  await sendEmail(booking.employee_email, `Reminder: ${booking.room_name} – Meeting in 15 Minutes`, html);
+    </div>`;
+    try { await sendEmail(r.email, `تذكير: ${booking.room_name}، الاجتماع بعد 15 دقيقة`, html); }
+    catch (e) { console.error('Reminder email err:', r.email, e.message); }
+  }
 }
 
 async function sendReminderEmails() {
@@ -226,28 +301,29 @@ async function sendReminderEmails() {
 async function sendTestEmail(toAddress) {
   const cfg = await getConfig();
   const apiKey = getResendApiKey(cfg);
+  const html = `<div style="${baseStyle}">${brandHeader('اختبار البريد')}<div style="${bodyStyle}"><h2 style="color:${OLIVE};margin-top:0;">البريد يعمل بنجاح</h2><p>تم إعداد البريد الإلكتروني بشكل صحيح، وسيتم إرسال تأكيدات الحجز ودعوات الاجتماعات تلقائياً.</p><p style="${footerStyle}">نظام حجز غرف الاجتماعات | Oaktree Group</p></div></div>`;
 
   if (apiKey) {
     const from = cfg.smtp_from && cfg.smtp_from !== 'noreply@oaktree.com'
-      ? `Oaktree Group Bookings <${cfg.smtp_from}>`
-      : 'Oaktree Group Bookings <onboarding@resend.dev>';
-    const html = `<div style="${baseStyle}"><div style="${headerStyle('#1B2A4A')}"><h1 style="margin:0;font-size:22px;">Oaktree Group</h1><p style="margin:6px 0 0;opacity:.8;font-size:14px;">Email Test</p></div><div style="${bodyStyle}"><h2 style="color:#2A5C45;margin-top:0;">Email is working!</h2><p>Your email setup is working. Booking confirmations will be sent automatically.</p><p style="${footerStyle}">Oaktree Group Meeting Room Booking System</p></div></div>`;
-    await sendViaResendApi(apiKey, from, toAddress, 'Test Email – Oaktree Meeting Room Booking', html);
-    return { isEthereal: false, message: `Test email sent to ${toAddress} via Resend` };
+      ? `Oaktree Group <${cfg.smtp_from}>`
+      : 'Oaktree Group <onboarding@resend.dev>';
+    await sendViaResendApi(apiKey, from, toAddress, 'اختبار البريد | نظام حجز غرف Oaktree', html);
+    return { isEthereal: false, message: `تم إرسال رسالة الاختبار إلى ${toAddress} عبر Resend` };
   }
 
   const transporter = getTransporter(cfg);
   if (transporter) {
-    const html = `<div style="${baseStyle}"><div style="${headerStyle('#1B2A4A')}"><h1 style="margin:0;font-size:22px;">Oaktree Group</h1></div><div style="${bodyStyle}"><h2 style="color:#2A5C45;margin-top:0;">Email is working!</h2><p>Your email setup is working correctly.</p></div></div>`;
-    await transporter.sendMail({ from: getSenderAddress(cfg), to: toAddress, subject: 'Test Email – Oaktree Meeting Room Booking', html });
-    return { isEthereal: false, message: `Test email sent to ${toAddress}` };
+    await transporter.sendMail({ from: getSenderAddress(cfg), to: toAddress, subject: 'اختبار البريد | نظام حجز غرف Oaktree', html });
+    return { isEthereal: false, message: `تم إرسال رسالة الاختبار إلى ${toAddress}` };
   }
 
   const testAccount = await nodemailer.createTestAccount();
   const t = nodemailer.createTransport({ host: 'smtp.ethereal.email', port: 587, secure: false, auth: { user: testAccount.user, pass: testAccount.pass } });
-  const html = `<div style="${baseStyle}"><div style="${bodyStyle}"><h2>Test email preview</h2><p>Configure Resend API key in Admin Settings to send real emails.</p></div></div>`;
-  const info = await t.sendMail({ from: '"Oaktree" <noreply@oaktree.com>', to: toAddress, subject: 'Test – Oaktree Booking', html });
-  return { isEthereal: true, previewUrl: nodemailer.getTestMessageUrl(info), message: 'No email service configured. Preview only.' };
+  const info = await t.sendMail({ from: '"Oaktree" <noreply@oaktree.com>', to: toAddress, subject: 'اختبار | نظام حجز Oaktree', html });
+  return { isEthereal: true, previewUrl: nodemailer.getTestMessageUrl(info), message: 'لم يتم إعداد خدمة بريد. معاينة فقط.' };
 }
 
-module.exports = { sendBookingConfirmation, sendCancellationNotification, sendOverrideNotification, sendReminderEmails, sendTestEmail };
+module.exports = {
+  sendBookingConfirmation, sendMeetingInvitations, sendCancellationNotification,
+  sendOverrideNotification, sendReminderEmails, sendTestEmail
+};

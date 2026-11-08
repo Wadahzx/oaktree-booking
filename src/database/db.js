@@ -6,7 +6,7 @@ function getPool() {
   if (!pool) {
     pool = new Pool({
       connectionString: process.env.DATABASE_URL,
-      ssl: { rejectUnauthorized: false },
+      ssl: /@(localhost|127\.0\.0\.1)[:\/]/.test(process.env.DATABASE_URL || '') ? false : { rejectUnauthorized: false },
       max: 3,
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 10000,
@@ -95,12 +95,20 @@ async function initializeDatabase() {
     );
   `);
 
+  await p.query("ALTER TABLE bookings ADD COLUMN IF NOT EXISTS attendees TEXT DEFAULT '[]'");
+
   const { rows: rc } = await p.query('SELECT COUNT(*) as c FROM rooms');
   if (parseInt(rc[0].c) === 0) {
     await run('INSERT INTO rooms (id,name,description,capacity) VALUES (?,?,?,?)',
-      ['oak_room', 'Oak Room', 'Main conference room with projector, whiteboard, and video conferencing', 12]);
+      ['oak_room', 'قاعة الاجتماعات · Boardroom', 'قاعة الاجتماع الرئيسية، تتسع لـ 12 شخصاً', 12]);
     await run('INSERT INTO rooms (id,name,description,capacity) VALUES (?,?,?,?)',
-      ['tree_room', 'Tree Room', 'Smaller meeting room ideal for team huddles and 1:1s', 6]);
+      ['tree_room', 'غرفة الاجتماعات · Meeting room', 'غرفة اجتماعات صغيرة، تتسع لـ 4 أشخاص', 4]);
+  } else {
+    // one-time rename of the original English defaults (admin edits are left alone)
+    await run("UPDATE rooms SET name=?, description=?, capacity=? WHERE id='oak_room' AND name IN ('Oak Room','غرفة الاجتماعات · Boardroom')",
+      ['قاعة الاجتماعات · Boardroom', 'قاعة الاجتماع الرئيسية، تتسع لـ 12 شخصاً', 12]);
+    await run("UPDATE rooms SET name=?, description=?, capacity=? WHERE id='tree_room' AND name IN ('Tree Room','غرفة الاجتماعات الصغيرة · Meeting room')",
+      ['غرفة الاجتماعات · Meeting room', 'غرفة اجتماعات صغيرة، تتسع لـ 4 أشخاص', 4]);
   }
 
   const { rows: sc } = await p.query('SELECT COUNT(*) as c FROM admin_settings');
