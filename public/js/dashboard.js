@@ -2,7 +2,7 @@
    OAKTREE — Dashboard (dashboard.js)
    ============================================================ */
 
-const ROOM_NAMES = { oak_room: 'Oak Room', tree_room: 'Tree Room' };
+const ROOM_NAMES = { oak_room: 'غرفة الاجتماعات · Boardroom', tree_room: 'غرفة الاجتماعات الصغيرة · Meeting room' };
 
 async function loadDashboard() {
   const today = todayStr();
@@ -10,9 +10,9 @@ async function loadDashboard() {
 
   // Greet based on time
   const hour = new Date().getHours();
-  const greet = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+  const greet = hour < 12 ? 'صباح الخير' : 'مساء الخير';
   const h1 = document.querySelector('.page-header-left h1');
-  if (h1) h1.textContent = `${greet} — Oaktree Group HQ`;
+  if (h1) h1.textContent = `${greet}، مقر مجموعة Oaktree`;
 
   await Promise.all([
     loadRoomStatus(today),
@@ -36,11 +36,11 @@ async function loadStats(today) {
     rooms.forEach(r => {
       if (r.id === 'oak_room') {
         document.getElementById('statOak').textContent    = r.bookingCount;
-        document.getElementById('statOakSub').textContent = `booking${r.bookingCount !== 1 ? 's' : ''} today`;
+        document.getElementById('statOakSub').textContent = 'حجوزات اليوم';
       }
       if (r.id === 'tree_room') {
         document.getElementById('statTree').textContent    = r.bookingCount;
-        document.getElementById('statTreeSub').textContent = `booking${r.bookingCount !== 1 ? 's' : ''} today`;
+        document.getElementById('statTreeSub').textContent = 'حجوزات اليوم';
       }
     });
 
@@ -52,8 +52,8 @@ async function loadStats(today) {
       nextEl.textContent  = fmt12(nextSlot.time);
       nextSub.textContent = nextSlot.room;
     } else {
-      nextEl.textContent  = 'None today';
-      nextSub.textContent = 'all slots taken or past';
+      nextEl.textContent  = 'لا يوجد اليوم';
+      nextSub.textContent = 'كل الأوقات محجوزة أو منتهية';
     }
   } catch (e) {
     console.error('Stats error:', e);
@@ -82,7 +82,7 @@ async function loadRoomStatus(today) {
 
     const rooms = availRes.data || [];
     if (!rooms.length) {
-      container.innerHTML = `<div class="empty-state"><div class="empty-state-title">No rooms configured</div></div>`;
+      container.innerHTML = `<div class="empty-state"><div class="empty-state-title">لا توجد غرف</div></div>`;
       return;
     }
 
@@ -101,17 +101,17 @@ async function loadRoomStatus(today) {
       const isBlocked= current && current.status === 'blocked';
 
       let statusClass = 'available';
-      let badgeHtml   = '<span class="badge badge-available">Available Now</span>';
-      let statusInfo  = next ? `Next free: ${fmt12(next.time)}` : 'No slots today';
+      let badgeHtml   = '<span class="badge badge-available">متاحة الآن</span>';
+      let statusInfo  = next ? `أقرب وقت متاح: ${fmt12(next.time)}` : 'لا توجد أوقات متاحة اليوم';
 
       if (isBlocked) {
         statusClass = 'blocked';
-        badgeHtml   = '<span class="badge badge-blocked">Blocked</span>';
-        statusInfo  = current.block ? current.block.reason : 'Administrative block';
+        badgeHtml   = '<span class="badge badge-blocked">محظورة</span>';
+        statusInfo  = current.block ? current.block.reason : 'حظر إداري';
       } else if (isBooked) {
         statusClass = 'occupied';
-        badgeHtml   = '<span class="badge badge-in-progress">In Use</span>';
-        statusInfo  = current.booking ? `${current.booking.purpose} · until ${fmt12(current.booking.end_time || '')}` : 'In use';
+        badgeHtml   = '<span class="badge badge-in-progress">قيد الاستخدام</span>';
+        statusInfo  = current.booking ? `${current.booking.purpose} · حتى ${fmt12(current.booking.end_time || '')}` : 'قيد الاستخدام';
       }
 
       const totalSlots     = slots.filter(s => s.status !== 'past').length;
@@ -125,13 +125,13 @@ async function loadRoomStatus(today) {
         <div class="room-desc">${room.description || ''}</div>
         <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px;">${statusInfo}</div>
         <div class="room-meta">
-          <span><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> ${room.capacity} capacity</span>
-          <span>${availableSlots}/${totalSlots} slots free</span>
+          <span><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> السعة ${room.capacity}</span>
+          <span>${availableSlots}/${totalSlots} أوقات متاحة</span>
         </div>
       </div>`;
     }).join('');
   } catch (e) {
-    container.innerHTML = `<div class="empty-state"><div class="empty-state-title">Could not load room status</div></div>`;
+    container.innerHTML = `<div class="empty-state"><div class="empty-state-title">تعذّر تحميل حالة الغرف</div></div>`;
   }
 }
 
@@ -143,8 +143,8 @@ async function loadTodaySchedule(today) {
     if (!bookings.length) {
       container.innerHTML = `<div class="empty-state" style="padding:40px 0;">
         <div class="empty-state-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
-        <div class="empty-state-title">No reservations scheduled for today</div>
-        <div class="empty-state-desc">All meeting rooms are available. Be the first to book!</div>
+        <div class="empty-state-title">لا توجد حجوزات اليوم</div>
+        <div class="empty-state-desc">جميع الغرف متاحة، كن أول من يحجز!</div>
       </div>`;
       return;
     }
@@ -167,13 +167,13 @@ async function loadTodaySchedule(today) {
           <div style="font-size:13.5px;font-weight:600;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(b.purpose)}</div>
           <div style="font-size:12px;color:var(--text-muted);">${b.room_name} · ${escHtml(b.employee_name)}</div>
         </div>
-        ${isNow ? '<span class="badge badge-in-progress" style="flex-shrink:0;">Now</span>' : ''}
+        ${isNow ? '<span class="badge badge-in-progress" style="flex-shrink:0;">الآن</span>' : ''}
       </div>`;
     }).join('');
 
     container.innerHTML = rows;
   } catch (e) {
-    container.innerHTML = `<div class="empty-state" style="padding:30px 0"><div class="empty-state-title">Could not load schedule</div></div>`;
+    container.innerHTML = `<div class="empty-state" style="padding:30px 0"><div class="empty-state-title">تعذّر تحميل الجدول</div></div>`;
   }
 }
 
@@ -186,24 +186,24 @@ async function loadUpcomingBookings() {
       tbody.innerHTML = `<tr><td colspan="7">
         <div class="empty-state" style="padding:40px 0;">
           <div class="empty-state-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
-          <div class="empty-state-title">No upcoming reservations</div>
-          <div class="empty-state-desc">No meetings are scheduled. <a href="/book" style="color:var(--navy);font-weight:600;">Book a room</a> to get started.</div>
+          <div class="empty-state-title">لا توجد حجوزات قادمة</div>
+          <div class="empty-state-desc">لا توجد اجتماعات مجدولة. <a href="/book" style="color:var(--navy);font-weight:600;">احجز غرفة</a> للبدء.</div>
         </div>
       </td></tr>`;
       return;
     }
 
     tbody.innerHTML = bookings.slice(0, 15).map(b => `<tr>
-      <td><span class="badge" style="background:${b.room_id==='oak_room'?'rgba(27,42,74,.1)':'rgba(42,92,69,.1)'};color:${b.room_id==='oak_room'?'var(--navy)':'var(--green)'};border:none">${b.room_name}</span></td>
+      <td><span class="badge" style="background:${b.room_id==='oak_room'?'rgba(28,45,60,.1)':'rgba(76,107,82,.1)'};color:${b.room_id==='oak_room'?'var(--navy)':'var(--green)'};border:none">${b.room_name}</span></td>
       <td><div style="font-weight:600;font-size:13px;">${escHtml(b.employee_name)}</div><div style="font-size:11px;color:var(--text-muted);">${escHtml(b.employee_email)}</div></td>
       <td>${fmtDate(b.date)}</td>
-      <td>${fmt12(b.start_time)} – ${fmt12(b.end_time)}</td>
+      <td>${fmtRange(b.start_time, b.end_time)}</td>
       <td>${fmtDuration(b.duration)}</td>
       <td style="max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(b.purpose)}</td>
       <td>${statusBadge(b.status)}</td>
     </tr>`).join('');
   } catch (e) {
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:30px;">Could not load bookings.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:30px;">تعذّر تحميل الحجوزات.</td></tr>`;
   }
 }
 

@@ -54,15 +54,15 @@ async function lookupBookings() {
 
   const btn = document.getElementById('lookupBtn');
   btn.disabled = true;
-  btn.innerHTML = '<div class="spinner"></div> Searching…';
+  btn.innerHTML = '<div class="spinner"></div> جارٍ البحث…';
 
   try {
     currentEmail = email.toLowerCase();
     const { data: all } = await GET('/bookings', { email: currentEmail });
 
     document.getElementById('bookingsContent').classList.remove('hidden');
-    document.getElementById('bookingsHeading').textContent   = 'Your Reservations';
-    document.getElementById('bookingsSubheading').textContent = `Showing bookings for ${currentEmail}`;
+    document.getElementById('bookingsHeading').textContent   = 'حجوزاتك';
+    document.getElementById('bookingsSubheading').textContent = `عرض الحجوزات المرتبطة بـ ${currentEmail}`;
 
     const now   = new Date();
     const upcoming = all.filter(b => {
@@ -79,10 +79,10 @@ async function lookupBookings() {
 
     document.getElementById('bookingsContent').scrollIntoView({ behavior: 'smooth' });
   } catch (e) {
-    showToast('error', 'Error', e.message);
+    showToast('error', 'خطأ', e.message);
   } finally {
     btn.disabled = false;
-    btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> Find Bookings`;
+    btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> بحث عن الحجوزات`;
   }
 }
 
@@ -100,9 +100,9 @@ function renderBookingList(containerId, bookings, canEdit) {
     const isUpcoming = canEdit;
     container.innerHTML = `<div class="empty-state">
       <div class="empty-state-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
-      <div class="empty-state-title">${isUpcoming ? 'No upcoming bookings yet' : 'No booking history available'}</div>
-      <div class="empty-state-desc">${isUpcoming ? 'You have no upcoming reservations.' : 'Your past reservations will appear here.'}</div>
-      ${isUpcoming ? '<a href="/book" class="btn btn-gold mt-2">Book a Room</a>' : ''}
+      <div class="empty-state-title">${isUpcoming ? 'لا توجد حجوزات قادمة' : 'لا يوجد سجل حجوزات'}</div>
+      <div class="empty-state-desc">${isUpcoming ? 'ليس لديك حجوزات قادمة.' : 'ستظهر حجوزاتك السابقة هنا.'}</div>
+      ${isUpcoming ? '<a href="/book" class="btn btn-gold mt-2">احجز غرفة</a>' : ''}
     </div>`;
     return;
   }
@@ -127,7 +127,7 @@ function buildBookingCard(b, canEdit) {
           <div style="font-size:13px;color:var(--text-secondary);margin-bottom:8px;">${b.room_name} · ${categoryLabel(b.category)}</div>
         </div>
         <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
-          ${isActive ? '<span class="badge badge-in-progress">In Progress</span>' : statusBadge(b.status)}
+          ${isActive ? '<span class="badge badge-in-progress">جارٍ الآن</span>' : statusBadge(b.status)}
         </div>
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin-bottom:12px;">
@@ -137,7 +137,7 @@ function buildBookingCard(b, canEdit) {
         </div>
         <div style="font-size:13px;color:var(--text-secondary);display:flex;align-items:center;gap:6px;">
           <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-          ${fmt12(b.start_time)} – ${fmt12(b.end_time)}
+          ${fmtRange(b.start_time, b.end_time)}
         </div>
         <div style="font-size:13px;color:var(--text-secondary);">${fmtDuration(b.duration)}</div>
       </div>
@@ -160,27 +160,27 @@ function buildBookingCard(b, canEdit) {
 function openCancelModal(id, purpose, room, date, start, end) {
   cancelTargetId = id;
   document.getElementById('cancelDetail').innerHTML = `
-    <div class="booking-detail-row"><div class="detail-label">Meeting</div><div class="detail-value">${escHtml(purpose)}</div></div>
-    <div class="booking-detail-row"><div class="detail-label">Room</div><div class="detail-value">${escHtml(room)}</div></div>
-    <div class="booking-detail-row"><div class="detail-label">Date</div><div class="detail-value">${fmtDate(date)}</div></div>
-    <div class="booking-detail-row"><div class="detail-label">Time</div><div class="detail-value">${fmt12(start)} – ${fmt12(end)}</div></div>`;
+    <div class="booking-detail-row"><div class="detail-label">الاجتماع</div><div class="detail-value">${escHtml(purpose)}</div></div>
+    <div class="booking-detail-row"><div class="detail-label">الغرفة</div><div class="detail-value">${escHtml(room)}</div></div>
+    <div class="booking-detail-row"><div class="detail-label">التاريخ</div><div class="detail-value">${fmtDate(date)}</div></div>
+    <div class="booking-detail-row"><div class="detail-label">الوقت</div><div class="detail-value">${fmtRange(start, end)}</div></div>`;
   openModal('cancelModal');
 }
 
 async function confirmCancel() {
   const btn = document.getElementById('cancelYesBtn');
   btn.disabled = true;
-  btn.textContent = 'Cancelling…';
+  btn.textContent = 'جارٍ الإلغاء…';
   try {
     await DEL(`/bookings/${cancelTargetId}`, { employee_email: currentEmail });
     closeModal('cancelModal');
-    showToast('success', 'Booking Cancelled', 'Your reservation has been cancelled.');
+    showToast('success', 'تم إلغاء الحجز', 'تم إلغاء حجزك.');
     await lookupBookings();
   } catch (e) {
-    showToast('error', 'Error', e.message);
+    showToast('error', 'خطأ', e.message);
   } finally {
     btn.disabled = false;
-    btn.textContent = 'Yes, Cancel Booking';
+    btn.textContent = 'نعم، إلغاء الحجز';
   }
 }
 
@@ -209,7 +209,7 @@ async function openEditModal(id) {
     await loadEditSlots();
     openModal('editModal');
   } catch (e) {
-    showToast('error', 'Error', 'Could not load booking details.');
+    showToast('error', 'خطأ', 'تعذّر تحميل تفاصيل الحجز.');
   }
 }
 
@@ -226,7 +226,7 @@ async function loadEditSlots() {
     const slots = (data.slots || []).filter(s => s.status === 'available' || (s.time === editBookingData.start_time && date === editBookingData.date));
 
     if (!slots.length) {
-      container.innerHTML = '<p class="text-sm text-muted">No available slots for this date.</p>';
+      container.innerHTML = '<p class="text-sm text-muted">لا توجد أوقات متاحة في هذا التاريخ.</p>';
       return;
     }
 
@@ -239,7 +239,7 @@ async function loadEditSlots() {
       </button>`;
     }).join('')}</div>`;
   } catch (e) {
-    container.innerHTML = '<p class="text-sm text-muted" style="color:var(--danger)">Could not load slots.</p>';
+    container.innerHTML = '<p class="text-sm text-muted" style="color:var(--danger)">تعذّر تحميل الأوقات.</p>';
   }
 }
 
@@ -254,7 +254,7 @@ async function saveEdit() {
   if (!editBookingData) return;
   const btn = document.getElementById('editSaveBtn');
   btn.disabled = true;
-  btn.textContent = 'Saving…';
+  btn.textContent = 'جارٍ الحفظ…';
 
   try {
     await PUT(`/bookings/${editBookingData.id}`, {
@@ -267,13 +267,13 @@ async function saveEdit() {
       notes:     document.getElementById('editNotes').value.trim()
     });
     closeModal('editModal');
-    showToast('success', 'Booking Updated', 'Your reservation has been updated.');
+    showToast('success', 'تم تحديث الحجز', 'تم تحديث حجزك.');
     await lookupBookings();
   } catch (e) {
-    showToast('error', 'Update Failed', e.message);
+    showToast('error', 'فشل التحديث', e.message);
   } finally {
     btn.disabled = false;
-    btn.textContent = 'Save Changes';
+    btn.textContent = 'حفظ التغييرات';
   }
 }
 

@@ -30,7 +30,7 @@ Visit: **http://localhost:3000**
 
 ## Admin Access
 - Navigate to **http://localhost:3000/admin**
-- Enter the access code: **Fathima**
+- Enter the access code set in the `ADMIN_CODE` environment variable (set a strong one in production)
 
 ---
 
@@ -52,9 +52,9 @@ SMTP_FROM=noreply@oaktree.com
 ---
 
 ## Features
-- **Two meeting rooms**: Oak Room (12 capacity) · Tree Room (6 capacity)
+- **Two meeting rooms**: Boardroom (12 people) · Meeting room (4 people)
 - **No login required** for employees — just enter name + email when booking
-- **Admin panel** with full management controls (code: Fathima)
+- **Admin panel** with full management controls
 - **Email notifications**: booking confirmation, cancellation, override alerts, 15-min reminders
 - **Calendar view**: day and week views with color-coded bookings
 - **Dark mode** toggle

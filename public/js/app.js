@@ -14,7 +14,7 @@ async function api(method, path, body) {
   if (body)  opts.body = JSON.stringify(body);
   const res  = await fetch('/api' + path, opts);
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'Request failed');
+  if (!res.ok) { const err = new Error(data.error || 'فشل الطلب'); err.data = data; throw err; }
   return data;
 }
 
@@ -78,10 +78,10 @@ function setTheme(theme) {
   const label = document.getElementById('themeLabel');
   if (theme === 'dark') {
     if (icon)  icon.innerHTML = '<path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M18.364 17.657l-.707-.707M6.343 6.343l-.707-.707M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>';
-    if (label) label.textContent = 'Light Mode';
+    if (label) label.textContent = 'الوضع الفاتح';
   } else {
     if (icon)  icon.innerHTML = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>';
-    if (label) label.textContent = 'Dark Mode';
+    if (label) label.textContent = 'الوضع الداكن';
   }
 }
 
@@ -106,35 +106,42 @@ function initSidebar() {
 function updateCurrentDate() {
   const el = document.getElementById('currentDate');
   if (!el) return;
-  el.textContent = new Date().toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short', year:'numeric' });
+  el.textContent = new Date().toLocaleDateString(AR_LOCALE, { weekday:'short', day:'numeric', month:'short', year:'numeric' });
 }
 
 // ── DATE / TIME HELPERS ───────────────────────────────────────
+const AR_LOCALE = 'ar-SA-u-nu-latn-ca-gregory'; // Arabic month/day names, Latin digits
+
+function fmtRange(a, b) {
+  return `${fmt12(a)} إلى ${fmt12(b)}`;
+}
+
 function todayStr() {
   return new Date().toISOString().split('T')[0];
 }
 
 function fmtDate(dateStr) {
   if (!dateStr) return '';
-  return new Date(dateStr + 'T12:00:00').toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short', year:'numeric' });
+  return new Date(dateStr + 'T12:00:00').toLocaleDateString(AR_LOCALE, { weekday:'short', day:'numeric', month:'short', year:'numeric' });
 }
 
 function fmtDateLong(dateStr) {
   if (!dateStr) return '';
-  return new Date(dateStr + 'T12:00:00').toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+  return new Date(dateStr + 'T12:00:00').toLocaleDateString(AR_LOCALE, { weekday:'long', day:'numeric', month:'long', year:'numeric' });
 }
 
 function fmt12(t) {
   if (!t) return '';
   const [h, m] = t.split(':').map(Number);
-  return `${h % 12 || 12}:${String(m).padStart(2,'0')} ${h >= 12 ? 'PM' : 'AM'}`;
+  return `${h % 12 || 12}:${String(m).padStart(2,'0')} ${h >= 12 ? 'م' : 'ص'}`;
 }
 
 function fmtDuration(mins) {
-  if (mins < 60) return `${mins} min`;
+  if (mins < 60) return `${mins} دقيقة`;
   const h = Math.floor(mins / 60);
   const m = mins % 60;
-  return m ? `${h}h ${m}m` : `${h} hour${h>1?'s':''}`;
+  const hours = h === 1 ? 'ساعة' : h === 2 ? 'ساعتان' : `${h} ساعات`;
+  return m ? `${hours} و${m} دقيقة` : hours;
 }
 
 function statusBadge(status) {
@@ -153,7 +160,7 @@ function categoryLabel(cat) {
     meeting:'cat.meeting', interview:'cat.interview', training:'cat.training',
     client:'cat.client', presentation:'cat.presentation', workshop:'cat.workshop', other:'cat.other'
   };
-  return map[cat] ? T(map[cat]) : (cat || 'Meeting');
+  return map[cat] ? T(map[cat]) : (cat || 'اجتماع');
 }
 
 // ── MODAL HELPERS ─────────────────────────────────────────────

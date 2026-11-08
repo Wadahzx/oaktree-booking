@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="ar" dir="rtl" data-theme="light">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard – Oaktree Meeting Room Booking</title>
+  <title>لوحة التحكم | Oaktree</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/styles.css">
 </head>
 <body>
@@ -16,41 +16,37 @@
   <!-- Sidebar -->
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-logo">
-      <div class="logo-mark" id="sidebarLogoMark">OG</div>
-      <div class="logo-text">
-        <span class="company-name">Oaktree Group</span>
-        <span class="system-name" data-i18n="brand.system">Meeting Room Booking</span>
-      </div>
+      <img class="brand-logo" src="/img/oaktree-logo-white.png" alt="Oaktree">
+      <span class="system-name" data-i18n="brand.system">حجز غرف الاجتماعات</span>
     </div>
     <nav class="sidebar-nav">
-      <span class="nav-label">Main Menu</span>
+      <span class="nav-label">القائمة الرئيسية</span>
       <a href="/" class="nav-item active" data-page="dashboard">
         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-        <span data-i18n="nav.dashboard">Dashboard</span>
+        <span data-i18n="nav.dashboard">لوحة التحكم</span>
       </a>
       <a href="/book" class="nav-item" data-page="book">
         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-        <span data-i18n="nav.book">Book a Room</span>
+        <span data-i18n="nav.book">احجز غرفة</span>
       </a>
       <a href="/calendar" class="nav-item" data-page="calendar">
         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-        <span data-i18n="nav.calendar">Calendar</span>
+        <span data-i18n="nav.calendar">التقويم</span>
       </a>
       <a href="/my-bookings" class="nav-item" data-page="my-bookings">
         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
-        <span data-i18n="nav.mybookings">My Bookings</span>
+        <span data-i18n="nav.mybookings">حجوزاتي</span>
       </a>
     </nav>
     <div class="sidebar-footer">
       <div class="nav-divider"></div>
       <a href="/admin" class="nav-item admin-link" data-page="admin">
         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-        <span data-i18n="nav.admin">Admin Panel</span>
+        <span data-i18n="nav.admin">لوحة الإدارة</span>
       </a>
-      <button class="lang-toggle" onclick="toggleLanguage()"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg><span id="langLabel">العربية</span></button>
       <button class="theme-toggle" id="themeToggle">
         <svg id="themeIcon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-        <span id="themeLabel">Dark Mode</span>
+        <span id="themeLabel">الوضع الداكن</span>
       </button>
     </div>
   </aside>
@@ -61,9 +57,9 @@
       <button class="sidebar-toggle" id="sidebarToggle">
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
       </button>
-      <div class="topbar-title" data-i18n="dash.title">Dashboard</div>
+      <div class="topbar-title" data-i18n="dash.title">لوحة التحكم</div>
       <div class="topbar-right">
-        <span class="internal-badge" data-i18n="common.internal">Internal Tool</span>
+        <span class="internal-badge" data-i18n="common.internal">أداة داخلية</span>
         <div class="date-display" id="currentDate"></div>
       </div>
     </header>
@@ -71,12 +67,12 @@
     <div class="page-content">
       <div class="page-header">
         <div class="page-header-left">
-          <h1 data-i18n="dash.heading">Good morning — Oaktree Group HQ</h1>
-          <p data-i18n="dash.subheading">Meeting room availability and today's schedule overview</p>
+          <h1 data-i18n="dash.heading">صباح الخير، مقر مجموعة Oaktree</h1>
+          <p data-i18n="dash.subheading">نظرة عامة على توفر غرف الاجتماعات وجدول اليوم</p>
         </div>
         <a href="/book" class="btn btn-gold">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-          Book a Room
+          احجز غرفة
         </a>
       </div>
 
@@ -84,27 +80,27 @@
       <div class="stats-grid" id="statsGrid">
         <div class="stat-card">
           <div class="stat-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
-          <div class="stat-label">Today's Bookings</div>
-          <div class="stat-value" id="statToday">—</div>
-          <div class="stat-sub">meetings scheduled today</div>
+          <div class="stat-label">حجوزات اليوم</div>
+          <div class="stat-value" id="statToday">…</div>
+          <div class="stat-sub">اجتماعات مجدولة اليوم</div>
         </div>
         <div class="stat-card">
           <div class="stat-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>
-          <div class="stat-label">Oak Room</div>
-          <div class="stat-value" id="statOak">—</div>
-          <div class="stat-sub" id="statOakSub">checking status…</div>
+          <div class="stat-label">غرفة الاجتماعات · Boardroom</div>
+          <div class="stat-value" id="statOak">…</div>
+          <div class="stat-sub" id="statOakSub">جارٍ التحقق…</div>
         </div>
         <div class="stat-card">
           <div class="stat-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
-          <div class="stat-label">Tree Room</div>
-          <div class="stat-value" id="statTree">—</div>
-          <div class="stat-sub" id="statTreeSub">checking status…</div>
+          <div class="stat-label">غرفة الاجتماعات الصغيرة · Meeting room</div>
+          <div class="stat-value" id="statTree">…</div>
+          <div class="stat-sub" id="statTreeSub">جارٍ التحقق…</div>
         </div>
         <div class="stat-card">
           <div class="stat-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
-          <div class="stat-label">Next Available</div>
-          <div class="stat-value" id="statNext" style="font-size:18px;">—</div>
-          <div class="stat-sub" id="statNextSub">any room</div>
+          <div class="stat-label">أقرب وقت متاح</div>
+          <div class="stat-value" id="statNext" style="font-size:18px;">…</div>
+          <div class="stat-sub" id="statNextSub">أي غرفة</div>
         </div>
       </div>
 
@@ -114,7 +110,7 @@
           <div class="card-header">
             <div class="card-title">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-              Room Status
+              حالة الغرف
             </div>
             <span class="text-sm text-muted" id="roomStatusDate"></span>
           </div>
@@ -131,7 +127,7 @@
           <div class="card-header">
             <div class="card-title">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-              Today's Schedule
+              جدول اليوم
             </div>
           </div>
           <div class="card-body" style="padding:0">
@@ -149,21 +145,21 @@
         <div class="card-header">
           <div class="card-title">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-            Upcoming Reservations
+            الحجوزات القادمة
           </div>
-          <a href="/calendar" class="btn btn-ghost btn-sm">View Calendar →</a>
+          <a href="/calendar" class="btn btn-ghost btn-sm">عرض التقويم ←</a>
         </div>
         <div class="table-wrap">
           <table class="data-table">
             <thead>
               <tr>
-                <th data-i18n="dash.col.room">Room</th>
-                <th data-i18n="dash.col.employee">Employee</th>
-                <th data-i18n="dash.col.date">Date</th>
-                <th data-i18n="dash.col.time">Time</th>
-                <th data-i18n="dash.col.duration">Duration</th>
-                <th data-i18n="dash.col.purpose">Purpose</th>
-                <th data-i18n="dash.col.status">Status</th>
+                <th data-i18n="dash.col.room">الغرفة</th>
+                <th data-i18n="dash.col.employee">الموظف</th>
+                <th data-i18n="dash.col.date">التاريخ</th>
+                <th data-i18n="dash.col.time">الوقت</th>
+                <th data-i18n="dash.col.duration">المدة</th>
+                <th data-i18n="dash.col.purpose">الغرض</th>
+                <th data-i18n="dash.col.status">الحالة</th>
               </tr>
             </thead>
             <tbody id="upcomingBody">

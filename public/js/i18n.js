@@ -9,7 +9,7 @@ var TRANSLATIONS = {
     'nav.darkmode':'Dark Mode','nav.lightmode':'Light Mode','nav.lang':'العربية',
     'brand.system':'Meeting Room Booking','brand.adminSystem':'Admin Panel',
     'common.internal':'Internal Tool',
-    'common.oakroom':'Oak Room','common.treeroom':'Tree Room','common.allrooms':'All Rooms',
+    'common.oakroom':'غرفة الاجتماعات · Boardroom','common.treeroom':'غرفة الاجتماعات الصغيرة · Meeting room','common.allrooms':'All Rooms',
     'common.book':'+ Book','common.newbooking':'+ New Booking',
     'common.save':'Save Changes','common.cancel':'Cancel','common.close':'Close',
     'common.edit':'Edit','common.clear':'Clear','common.refresh':'Refresh',
@@ -76,8 +76,8 @@ var TRANSLATIONS = {
     'brand.system':'حجز غرف الاجتماعات',
     'brand.adminSystem':'لوحة الإدارة',
     'common.internal':'أداة داخلية',
-    'common.oakroom':'غرفة أوك',
-    'common.treeroom':'غرفة تري',
+    'common.oakroom':'غرفة الاجتماعات · Boardroom',
+    'common.treeroom':'غرفة الاجتماعات الصغيرة · Meeting room',
     'common.allrooms':'جميع الغرف',
     'common.book':'+ احجز',
     'common.newbooking':'+ حجز جديد',
@@ -89,7 +89,7 @@ var TRANSLATIONS = {
     'common.refresh':'تحديث',
     'status.confirmed':'مؤكد',
     'status.cancelled':'ملغي',
-    'status.overridden':'ألغي بالأولوية',
+    'status.overridden':'أُلغي بالأولوية',
     'status.available':'متاح',
     'status.occupied':'مشغول',
     'status.blocked':'محظور',
@@ -105,18 +105,18 @@ var TRANSLATIONS = {
     'dur.90':'ساعة ونصف',
     'dur.120':'ساعتان',
     'dash.title':'لوحة التحكم',
-    'dash.heading':'صباح الخير — مقر مجموعة أوكتري',
+    'dash.heading':'صباح الخير، مقر مجموعة Oaktree',
     'dash.subheading':'نظرة عامة على توفر غرف الاجتماعات وجدول اليوم',
     'dash.bookbtn':'احجز غرفة',
     'dash.today':'حجوزات اليوم',
     'dash.todaysub':'اجتماعات مجدولة اليوم',
     'dash.nextavail':'أقرب وقت متاح',
     'dash.nextsub':'أي غرفة',
-    'dash.checking':'جار التحقق...',
+    'dash.checking':'جارٍ التحقق…',
     'dash.roomstatus':'حالة الغرف',
     'dash.schedule':'جدول اليوم',
     'dash.upcoming':'الحجوزات القادمة',
-    'dash.viewcal':'عرض التقويم',
+    'dash.viewcal':'عرض التقويم ←',
     'dash.col.room':'الغرفة',
     'dash.col.employee':'الموظف',
     'dash.col.date':'التاريخ',
@@ -180,7 +180,7 @@ var TRANSLATIONS = {
 };
 
 function currentLang() {
-  return localStorage.getItem('oaktreeLang') || 'en';
+  return 'ar'; // Arabic-only
 }
 
 function t(key) {
