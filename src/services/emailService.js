@@ -21,8 +21,24 @@ function getResendApiKey(cfg) {
   return null;
 }
 
+// Plain text version without image links, so mail previews show real text
+function toPlainText(html) {
+  return String(html)
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<img[^>]*>/gi, '')
+    .replace(/<br\s*\/?>|<\/(p|div|tr|h[1-6])>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"')
+    .replace(/[ \t]+/g, ' ').replace(/\n\s*\n+/g, '\n').trim();
+}
+// Hidden preview line shown by mail apps next to the subject
+function withPreheader(html) {
+  const pre = toPlainText(html).replace(/\n/g, ' ').slice(0, 140);
+  return `<div style="display:none;max-height:0;overflow:hidden;opacity:0;font-size:1px;line-height:1px;color:transparent;">${esc(pre)}</div>` + html;
+}
+
 async function sendViaResendApi(apiKey, fromAddress, to, subject, html, ics) {
-  const body = { from: fromAddress, to: [to], subject, html };
+  const body = { from: fromAddress, to: [to], subject, html: withPreheader(html), text: toPlainText(html) };
   if (ics) {
     body.attachments = [{
       filename: 'invite.ics',
@@ -114,7 +130,7 @@ async function sendEmail(to, subject, html, ics) {
   }
   const t = getTransporter(cfg);
   if (!t) { console.log(`[EMAIL] No email service configured.`); return; }
-  const mail = { from: getSenderAddress(cfg), to, subject, html };
+  const mail = { from: getSenderAddress(cfg), to, subject, html: withPreheader(html), text: toPlainText(html) };
   if (ics) mail.icalEvent = { method: ics.method, content: ics.content };
   await t.sendMail(mail);
   console.log(`[EMAIL] Sent via SMTP → ${to}`);
