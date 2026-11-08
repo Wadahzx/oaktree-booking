@@ -195,7 +195,7 @@ async function loadUpcomingBookings() {
 
     tbody.innerHTML = bookings.slice(0, 15).map(b => `<tr>
       <td><span class="badge" style="background:${b.room_id==='oak_room'?'rgba(28,45,60,.1)':'rgba(76,107,82,.1)'};color:${b.room_id==='oak_room'?'var(--navy)':'var(--green)'};border:none">${b.room_name}</span></td>
-      <td><div style="font-weight:600;font-size:13px;">${escHtml(b.employee_name)}</div><div style="font-size:11px;color:var(--text-muted);">${escHtml(b.employee_email)}</div></td>
+      <td><div style="font-weight:600;font-size:13px;">${escHtml(b.employee_name)}</div></td>
       <td>${fmtDate(b.date)}</td>
       <td>${fmtRange(b.start_time, b.end_time)}</td>
       <td>${fmtDuration(b.duration)}</td>

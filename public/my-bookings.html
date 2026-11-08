@@ -55,18 +55,33 @@
           </div>
         </div>
         <div class="card-body">
-          <p style="font-size:14px;color:var(--text-secondary);margin-bottom:16px;" data-i18n="my.finddesc">أدخل بريدك الإلكتروني لعرض حجوزاتك وإدارتها.</p>
-          <div style="display:flex;gap:10px;max-width:480px;">
-            <div style="flex:1">
+          <p style="font-size:14px;color:var(--text-secondary);margin-bottom:16px;" id="authDesc">أدخل بريدك الإلكتروني وسنرسل لك رمز تحقق لعرض حجوزاتك وإدارتها.</p>
+
+          <!-- Step 1: email -->
+          <div id="emailStep" style="display:flex;gap:10px;max-width:480px;flex-wrap:wrap;">
+            <div style="flex:1;min-width:220px">
               <input type="email" id="lookupEmail" placeholder="name@oaktree.com" autocomplete="email" data-i18n-ph="my.emailph"
-                style="margin-bottom:0" onkeydown="if(event.key==='Enter') lookupBookings()">
+                style="margin-bottom:0" onkeydown="if(event.key==='Enter') requestCode()">
             </div>
-            <button class="btn btn-primary" onclick="lookupBookings()" id="lookupBtn">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-              <span data-i18n="my.findbtn">بحث عن الحجوزات</span>
-            </button>
+            <button class="btn btn-primary" onclick="requestCode()" id="lookupBtn">إرسال رمز التحقق</button>
           </div>
           <div id="lookupError" class="input-error" style="display:none;margin-top:6px;">يرجى إدخال بريد إلكتروني صحيح.</div>
+
+          <!-- Step 2: code -->
+          <div id="codeStep" style="display:none;max-width:480px;">
+            <label for="loginCode" style="display:block;margin-bottom:6px;">رمز التحقق المكوّن من 6 أرقام</label>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+              <input type="text" id="loginCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000"
+                style="flex:1;min-width:160px;margin-bottom:0;letter-spacing:6px;font-size:20px;text-align:center;direction:ltr"
+                onkeydown="if(event.key==='Enter') verifyCode()">
+              <button class="btn btn-gold" onclick="verifyCode()" id="verifyBtn">تحقق</button>
+            </div>
+            <div id="codeError" class="input-error" style="display:none;margin-top:6px;"></div>
+            <div style="margin-top:12px;display:flex;gap:16px;flex-wrap:wrap;font-size:13px;">
+              <button type="button" class="btn btn-outline btn-sm" id="resendBtn" onclick="requestCode(true)">إعادة إرسال الرمز</button>
+              <button type="button" class="btn btn-outline btn-sm" onclick="changeEmail()">تغيير البريد</button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -80,7 +95,7 @@
           <div style="display:flex;gap:10px;">
             <button class="btn btn-outline btn-sm" onclick="clearLookup()">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-              <span data-i18n="my.clear">مسح</span>
+              <span>تسجيل الخروج</span>
             </button>
             <a href="/book" class="btn btn-gold btn-sm" data-i18n="common.newbooking">+ حجز جديد</a>
           </div>
@@ -171,6 +186,10 @@
             </select>
             <input type="text" id="editCategoryOther" class="category-other" maxlength="60" placeholder="اكتب نوع الاجتماع" style="display:none;margin-top:8px">
           </div>
+        </div>
+        <div class="form-group">
+          <label for="editAttendees">المشاركون <span style="font-weight:400;color:var(--text-muted)">(بريد إلكتروني في كل سطر)</span></label>
+          <textarea id="editAttendees" rows="3" placeholder="name@oaktree.com" style="direction:ltr;text-align:left"></textarea>
         </div>
         <div class="form-group">
           <label for="editNotes">ملاحظات</label>

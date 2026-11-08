@@ -314,6 +314,17 @@ async function sendReminderEmails() {
   }
 }
 
+async function sendLoginCode(to, code) {
+  if (process.env.NODE_ENV !== 'production') console.log(`[LOGIN CODE] ${to}: ${code}`);
+  const html = `<div style="${baseStyle}">${brandHeader('رمز التحقق')}<div style="${bodyStyle}">
+    <h2 style="color:${OLIVE};margin-top:0;">رمز الدخول إلى حجوزاتك</h2>
+    <p>استخدم الرمز التالي لعرض حجوزاتك وإدارتها. صلاحيته 10 دقائق.</p>
+    <p style="text-align:center;margin:24px 0;"><span style="display:inline-block;font-size:34px;letter-spacing:10px;font-weight:700;color:${NAVY};background:${SAND};padding:14px 22px;border-radius:8px;direction:ltr;">${esc(code)}</span></p>
+    <p style="color:#6b6b6b;font-size:13px;">إذا لم تطلب هذا الرمز فتجاهل الرسالة، ولن يتغير شيء في حجوزاتك.</p>
+    <p style="${footerStyle}">نظام حجز غرف الاجتماعات | Oaktree Group</p></div></div>`;
+  await sendEmail(to, `رمز التحقق ${code} | حجوزاتي في Oaktree`, html);
+}
+
 async function sendTestEmail(toAddress) {
   const cfg = await getConfig();
   const apiKey = getResendApiKey(cfg);
@@ -341,5 +352,5 @@ async function sendTestEmail(toAddress) {
 
 module.exports = {
   sendBookingConfirmation, sendMeetingInvitations, sendCancellationNotification,
-  sendOverrideNotification, sendReminderEmails, sendTestEmail
+  sendOverrideNotification, sendReminderEmails, sendTestEmail, sendLoginCode
 };

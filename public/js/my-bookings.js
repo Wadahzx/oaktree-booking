@@ -11,11 +11,12 @@ let editSelectedDur  = null;
 // ── INIT ──────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   wireCategoryOther('editCategory', 'editCategoryOther');
-  // Pre-fill email from URL param if present
-  const params = new URLSearchParams(window.location.search);
-  if (params.get('email')) {
-    document.getElementById('lookupEmail').value = params.get('email');
-    lookupBookings();
+  // Resume a verified session, otherwise show the email step
+  const s = getSession();
+  if (s) { currentEmail = s.email; lookupBookings(); }
+  else {
+    const q = new URLSearchParams(window.location.search).get('email');
+    if (q) document.getElementById('lookupEmail').value = q;
   }
 
   // Cancel modal
@@ -42,56 +43,133 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('editDate').addEventListener('change', loadEditSlots);
 });
 
-// ── LOOKUP ────────────────────────────────────────────────────
-async function lookupBookings() {
-  const email = document.getElementById('lookupEmail').value.trim();
-  const errEl = document.getElementById('lookupError');
+// ── EMAIL CODE LOGIN ──────────────────────────────────────────
+const SESSION_KEY = 'oaktreeUser';
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+let resendTimer = null;
 
-  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    errEl.style.display = 'block';
-    return;
-  }
+function getSession() {
+  try {
+    const s = JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null');
+    return s && s.token && s.exp > Date.now() ? s : null;
+  } catch (e) { return null; }
+}
+
+function logout(silent) {
+  sessionStorage.removeItem(SESSION_KEY);
+  currentEmail = '';
+  clearInterval(resendTimer);
+  document.getElementById('bookingsContent').classList.add('hidden');
+  document.getElementById('lookupCard').style.display = '';
+  document.getElementById('codeStep').style.display = 'none';
+  document.getElementById('emailStep').style.display = 'flex';
+  document.getElementById('lookupEmail').value = '';
+  document.getElementById('loginCode').value = '';
+  document.getElementById('authDesc').textContent = 'أدخل بريدك الإلكتروني وسنرسل لك رمز تحقق لعرض حجوزاتك وإدارتها.';
+  if (!silent) showToast('info', 'تم تسجيل الخروج', 'أُغلقت جلسة حجوزاتك.');
+}
+
+function startResendCountdown() {
+  const btn = document.getElementById('resendBtn');
+  let left = 60;
+  clearInterval(resendTimer);
+  btn.disabled = true;
+  const tick = () => {
+    btn.textContent = left > 0 ? `إعادة الإرسال بعد ${left} ثانية` : 'إعادة إرسال الرمز';
+    if (left <= 0) { btn.disabled = false; clearInterval(resendTimer); }
+    left--;
+  };
+  tick();
+  resendTimer = setInterval(tick, 1000);
+}
+
+async function requestCode(isResend) {
+  const emailEl = document.getElementById('lookupEmail');
+  const errEl = document.getElementById('lookupError');
+  const email = (emailEl.value || currentEmail).trim().toLowerCase();
+  if (!EMAIL_RE.test(email)) { errEl.style.display = 'block'; return; }
   errEl.style.display = 'none';
 
-  const btn = document.getElementById('lookupBtn');
+  const btn = document.getElementById(isResend === true ? 'resendBtn' : 'lookupBtn');
   btn.disabled = true;
-  btn.innerHTML = '<div class="spinner"></div> جارٍ البحث…';
-
+  const old = btn.textContent;
+  btn.textContent = 'جارٍ الإرسال…';
   try {
-    currentEmail = email.toLowerCase();
+    await POST('/bookings/auth/request', { email });
+    currentEmail = email;
+    document.getElementById('emailStep').style.display = 'none';
+    document.getElementById('codeStep').style.display = 'block';
+    document.getElementById('authDesc').textContent = `أرسلنا رمز التحقق إلى ${email}. أدخله هنا لعرض حجوزاتك.`;
+    document.getElementById('loginCode').value = '';
+    document.getElementById('codeError').style.display = 'none';
+    document.getElementById('loginCode').focus();
+    startResendCountdown();
+    if (isResend === true) showToast('success', 'تم الإرسال', 'أرسلنا رمزاً جديداً إلى بريدك.');
+  } catch (e) {
+    if (isResend === true) { btn.disabled = false; btn.textContent = old; }
+    showToast('error', 'تعذّر الإرسال', e.message);
+  } finally {
+    if (isResend !== true) { btn.disabled = false; btn.textContent = old; }
+  }
+}
+
+function changeEmail() {
+  clearInterval(resendTimer);
+  document.getElementById('codeStep').style.display = 'none';
+  document.getElementById('emailStep').style.display = 'flex';
+  document.getElementById('lookupEmail').value = currentEmail;
+  document.getElementById('authDesc').textContent = 'أدخل بريدك الإلكتروني وسنرسل لك رمز تحقق لعرض حجوزاتك وإدارتها.';
+}
+
+async function verifyCode() {
+  const code = document.getElementById('loginCode').value.trim();
+  const errEl = document.getElementById('codeError');
+  if (!/^\d{6}$/.test(code)) { errEl.textContent = 'أدخل الرمز المكوّن من 6 أرقام.'; errEl.style.display = 'block'; return; }
+  errEl.style.display = 'none';
+  const btn = document.getElementById('verifyBtn');
+  btn.disabled = true; btn.textContent = 'جارٍ التحقق…';
+  try {
+    const r = await POST('/bookings/auth/verify', { email: currentEmail, code });
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify({ token: r.token, email: r.email, exp: r.expires }));
+    currentEmail = r.email;
+    await lookupBookings();
+  } catch (e) {
+    errEl.textContent = e.message; errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false; btn.textContent = 'تحقق';
+  }
+}
+
+// ── LOOKUP (needs a verified session) ─────────────────────────
+function handleAuthError(e) {
+  if (e && e.data && e.data.need_auth) { logout(true); showToast('error', 'انتهت الجلسة', 'يرجى التحقق من بريدك الإلكتروني مرة أخرى.'); return true; }
+  return false;
+}
+
+async function lookupBookings() {
+  const s = getSession();
+  if (!s) { logout(true); return; }
+  currentEmail = s.email;
+  try {
     const { data: all } = await GET('/bookings', { email: currentEmail });
 
+    document.getElementById('lookupCard').style.display = 'none';
     document.getElementById('bookingsContent').classList.remove('hidden');
     document.getElementById('bookingsHeading').textContent   = 'حجوزاتك';
     document.getElementById('bookingsSubheading').textContent = `عرض الحجوزات المرتبطة بـ ${currentEmail}`;
 
     const now   = new Date();
-    const upcoming = all.filter(b => {
-      const dt = new Date(`${b.date}T${b.start_time}:00`);
-      return dt > now && (b.status === 'confirmed');
-    });
-    const past = all.filter(b => {
-      const dt = new Date(`${b.date}T${b.start_time}:00`);
-      return dt <= now || b.status !== 'confirmed';
-    });
+    const upcoming = all.filter(b => new Date(`${b.date}T${b.start_time}:00`) > now && b.status === 'confirmed');
+    const past = all.filter(b => new Date(`${b.date}T${b.start_time}:00`) <= now || b.status !== 'confirmed');
 
     renderBookingList('upcomingBookings', upcoming, true);
     renderBookingList('pastBookings', past, false);
-
-    document.getElementById('bookingsContent').scrollIntoView({ behavior: 'smooth' });
   } catch (e) {
-    showToast('error', 'خطأ', e.message);
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> بحث عن الحجوزات`;
+    if (!handleAuthError(e)) showToast('error', 'خطأ', e.message);
   }
 }
 
-function clearLookup() {
-  currentEmail = '';
-  document.getElementById('lookupEmail').value = '';
-  document.getElementById('bookingsContent').classList.add('hidden');
-}
+function clearLookup() { logout(false); }
 
 // ── RENDER BOOKING LIST ───────────────────────────────────────
 function renderBookingList(containerId, bookings, canEdit) {
@@ -146,11 +224,11 @@ function buildBookingCard(b, canEdit) {
       ${canManage ? `<div style="display:flex;gap:8px;">
         <button class="btn btn-outline btn-sm" onclick="openEditModal('${b.id}')">
           <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-          Edit
+          تعديل
         </button>
         <button class="btn btn-danger btn-sm" onclick="openCancelModal('${b.id}', '${escHtml(b.purpose)}', '${b.room_name}', '${b.date}', '${b.start_time}', '${b.end_time}')">
           <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
-          Cancel
+          إلغاء
         </button>
       </div>` : ''}
     </div>
@@ -173,12 +251,12 @@ async function confirmCancel() {
   btn.disabled = true;
   btn.textContent = 'جارٍ الإلغاء…';
   try {
-    await DEL(`/bookings/${cancelTargetId}`, { employee_email: currentEmail });
+    await DEL(`/bookings/${cancelTargetId}`);
     closeModal('cancelModal');
     showToast('success', 'تم إلغاء الحجز', 'تم إلغاء حجزك.');
     await lookupBookings();
   } catch (e) {
-    showToast('error', 'خطأ', e.message);
+    if (!handleAuthError(e)) showToast('error', 'خطأ', e.message);
   } finally {
     btn.disabled = false;
     btn.textContent = 'نعم، إلغاء الحجز';
@@ -199,6 +277,8 @@ async function openEditModal(id) {
     document.getElementById('editDate').min        = todayStr();
     document.getElementById('editPurpose').value   = b.purpose;
     setCategoryValue('editCategory', 'editCategoryOther', b.category);
+    let _att = []; try { _att = JSON.parse(b.attendees || '[]'); } catch (e) {}
+    document.getElementById('editAttendees').value = _att.map(a => a.email).join('\n');
     document.getElementById('editNotes').value     = b.notes || '';
     document.getElementById('editDuration').value  = b.duration;
 
@@ -265,17 +345,26 @@ async function saveEdit() {
       duration:  editSelectedDur || editBookingData.duration,
       purpose:   document.getElementById('editPurpose').value.trim(),
       category:  categoryValue('editCategory', 'editCategoryOther'),
-      notes:     document.getElementById('editNotes').value.trim()
+      notes:     document.getElementById('editNotes').value.trim(),
+      attendees: parseAttendees()
     });
     closeModal('editModal');
     showToast('success', 'تم تحديث الحجز', 'تم تحديث حجزك.');
     await lookupBookings();
   } catch (e) {
-    showToast('error', 'فشل التحديث', e.message);
+    if (!handleAuthError(e)) showToast('error', 'فشل التحديث', e.message);
   } finally {
     btn.disabled = false;
     btn.textContent = 'حفظ التغييرات';
   }
+}
+
+// Emails typed in the edit box, keeping names we already know
+function parseAttendees() {
+  let known = {}; try { JSON.parse(editBookingData.attendees || '[]').forEach(a => known[a.email] = a.name); } catch (e) {}
+  const seen = new Set();
+  return document.getElementById('editAttendees').value.split(/[\s,;،]+/).map(x => x.trim().toLowerCase()).filter(x => x && !seen.has(x) && seen.add(x))
+    .map(email => ({ email, name: known[email] || '' }));
 }
 
 function escHtml(str) {

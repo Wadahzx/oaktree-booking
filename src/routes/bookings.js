@@ -2,7 +2,8 @@ const express = require('express');
 const router = express.Router();
 const { randomUUID } = require('crypto');
 const { all, get, run } = require('../database/db');
-const { sendBookingConfirmation, sendMeetingInvitations, sendCancellationNotification } = require('../services/emailService');
+const { sendBookingConfirmation, sendMeetingInvitations, sendCancellationNotification, sendLoginCode } = require('../services/emailService');
+const { issueUserToken, userEmail, isAdmin, hashCode, newCode, sameHash } = require('../services/userAuth');
 const { getDaySchedule } = require('../services/schedule');
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -35,10 +36,67 @@ function nowInRiyadh() {
   return new Date(d.toLocaleString('en-US', { timeZone: TZ }));
 }
 
+const NEED_AUTH = { success: false, need_auth: true, error: 'يلزم التحقق من بريدك الإلكتروني أولاً.' };
+
+// Hide private fields from anyone who is not the booking owner or an admin
+function scrub(rows, req) {
+  const me = userEmail(req), admin = isAdmin(req);
+  const clean = b => {
+    if (admin || (me && String(b.employee_email).toLowerCase() === me)) return b;
+    const { employee_email, notes, attendees, ...rest } = b;
+    return rest;
+  };
+  return Array.isArray(rows) ? rows.map(clean) : clean(rows);
+}
+
+// POST /api/bookings/auth/request  { email }  - emails a 6 digit code
+router.post('/auth/request', async (req, res) => {
+  try {
+    const email = String(req.body.email || '').trim().toLowerCase();
+    if (!EMAIL_RE.test(email)) return res.status(400).json({ success: false, error: 'يرجى إدخال بريد إلكتروني صحيح.' });
+    const recent = await get("SELECT COUNT(*) AS c FROM email_codes WHERE email = ? AND created_at > NOW() - INTERVAL '60 seconds'", [email]);
+    if (parseInt(recent.c) > 0) return res.status(429).json({ success: false, error: 'تم إرسال رمز قبل قليل. انتظر دقيقة ثم حاول مرة أخرى.' });
+    const hour = await get("SELECT COUNT(*) AS c FROM email_codes WHERE email = ? AND created_at > NOW() - INTERVAL '1 hour'", [email]);
+    if (parseInt(hour.c) >= 5) return res.status(429).json({ success: false, error: 'تجاوزت عدد المحاولات المسموح. حاول بعد ساعة.' });
+    const code = newCode();
+    await run("DELETE FROM email_codes WHERE expires_at < NOW()");
+    await run("INSERT INTO email_codes (id, email, code_hash, expires_at) VALUES (?, ?, ?, NOW() + INTERVAL '10 minutes')", [randomUUID(), email, hashCode(email, code)]);
+    await sendLoginCode(email, code);
+    res.json({ success: true, message: 'أرسلنا رمز التحقق إلى بريدك الإلكتروني.' });
+  } catch (e) {
+    console.error('Login code error:', e);
+    res.status(500).json({ success: false, error: 'تعذّر إرسال الرمز، حاول مرة أخرى.' });
+  }
+});
+
+// POST /api/bookings/auth/verify  { email, code }  - returns a session token
+router.post('/auth/verify', async (req, res) => {
+  try {
+    const email = String(req.body.email || '').trim().toLowerCase();
+    const code  = String(req.body.code || '').trim();
+    const row = await get('SELECT * FROM email_codes WHERE email = ? AND expires_at > NOW() ORDER BY created_at DESC LIMIT 1', [email]);
+    if (!row) return res.status(400).json({ success: false, error: 'انتهت صلاحية الرمز. اطلب رمزاً جديداً.' });
+    if (row.attempts >= 5) {
+      await run('DELETE FROM email_codes WHERE email = ?', [email]);
+      return res.status(429).json({ success: false, error: 'محاولات كثيرة خاطئة. اطلب رمزاً جديداً.' });
+    }
+    if (!/^\d{6}$/.test(code) || !sameHash(row.code_hash, hashCode(email, code))) {
+      await run('UPDATE email_codes SET attempts = attempts + 1 WHERE id = ?', [row.id]);
+      return res.status(400).json({ success: false, error: 'الرمز غير صحيح.' });
+    }
+    await run('DELETE FROM email_codes WHERE email = ?', [email]);
+    const { token, exp } = issueUserToken(email);
+    res.json({ success: true, token, email, expires: exp });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 // GET /api/bookings
 router.get('/', async (req, res) => {
   try {
     const { email, date, room_id, status, upcoming } = req.query;
+    if (email && !isAdmin(req) && userEmail(req) !== String(email).trim().toLowerCase()) return res.status(401).json(NEED_AUTH);
     let query = `SELECT b.*, r.name as room_name FROM bookings b JOIN rooms r ON b.room_id = r.id WHERE 1=1`;
     const params = [];
 
@@ -56,7 +114,7 @@ router.get('/', async (req, res) => {
 
     query += ' ORDER BY b.date, b.start_time';
     const bookings = await all(query, params);
-    res.json({ success: true, data: bookings });
+    res.json({ success: true, data: scrub(bookings, req) });
   } catch (e) {
     res.status(500).json({ success: false, error: e.message });
   }
@@ -88,7 +146,7 @@ router.get('/:id', async (req, res) => {
   try {
     const b = await get('SELECT b.*, r.name as room_name FROM bookings b JOIN rooms r ON b.room_id = r.id WHERE b.id = ?', [req.params.id]);
     if (!b) return res.status(404).json({ success: false, error: 'الحجز غير موجود' });
-    res.json({ success: true, data: b });
+    res.json({ success: true, data: scrub(b, req) });
   } catch (e) {
     res.status(500).json({ success: false, error: e.message });
   }
@@ -186,8 +244,8 @@ router.put('/:id', async (req, res) => {
 
     const existing = await get('SELECT * FROM bookings WHERE id = ?', [req.params.id]);
     if (!existing) return res.status(404).json({ success: false, error: 'الحجز غير موجود.' });
-    if (existing.employee_email.toLowerCase() !== (employee_email || '').toLowerCase()) {
-      return res.status(403).json({ success: false, error: 'يمكنك تعديل حجوزاتك فقط.' });
+    if (!isAdmin(req) && userEmail(req) !== existing.employee_email.toLowerCase()) {
+      return res.status(userEmail(req) ? 403 : 401).json(userEmail(req) ? { success: false, error: 'يمكنك تعديل حجوزاتك فقط.' } : NEED_AUTH);
     }
     if (existing.status !== 'confirmed') {
       return res.status(400).json({ success: false, error: 'لا يمكن تعديل حجز ملغي.' });
@@ -233,7 +291,7 @@ router.put('/:id', async (req, res) => {
     const updated = await get('SELECT b.*, r.name as room_name FROM bookings b JOIN rooms r ON b.room_id = r.id WHERE b.id = ?', [req.params.id]);
     sendMeetingInvitations(updated, { updated: true }).catch(e => console.error('Invite err:', e));
     await run(`INSERT INTO audit_log (id, action, entity_type, entity_id, details, performed_by) VALUES (?, 'UPDATE', 'booking', ?, ?, ?)`,
-      [randomUUID(), req.params.id, JSON.stringify({ changes: req.body }), employee_email]);
+      [randomUUID(), req.params.id, JSON.stringify({ changes: req.body }), existing.employee_email]);
 
     res.json({ success: true, data: updated });
   } catch (e) {
@@ -247,15 +305,15 @@ router.delete('/:id', async (req, res) => {
     const { employee_email } = req.body;
     const existing = await get('SELECT b.*, r.name as room_name FROM bookings b JOIN rooms r ON b.room_id = r.id WHERE b.id = ?', [req.params.id]);
     if (!existing) return res.status(404).json({ success: false, error: 'الحجز غير موجود.' });
-    if (existing.employee_email.toLowerCase() !== (employee_email || '').toLowerCase()) {
-      return res.status(403).json({ success: false, error: 'يمكنك إلغاء حجوزاتك فقط.' });
+    if (!isAdmin(req) && userEmail(req) !== existing.employee_email.toLowerCase()) {
+      return res.status(userEmail(req) ? 403 : 401).json(userEmail(req) ? { success: false, error: 'يمكنك إلغاء حجوزاتك فقط.' } : NEED_AUTH);
     }
 
     await run("UPDATE bookings SET status='cancelled', updated_at=NOW() WHERE id=?", [req.params.id]);
     sendCancellationNotification(existing, 'ألغاه الموظف').catch(e => console.error('Email err:', e));
 
     await run(`INSERT INTO audit_log (id, action, entity_type, entity_id, details, performed_by) VALUES (?, 'CANCEL', 'booking', ?, ?, ?)`,
-      [randomUUID(), req.params.id, 'ألغى الموظف حجزه', employee_email]);
+      [randomUUID(), req.params.id, 'ألغى الموظف حجزه', existing.employee_email]);
 
     res.json({ success: true, message: 'تم إلغاء الحجز بنجاح.' });
   } catch (e) {
