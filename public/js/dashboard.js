@@ -2,7 +2,7 @@
    OAKTREE — Dashboard (dashboard.js)
    ============================================================ */
 
-const ROOM_NAMES = { oak_room: 'غرفة الاجتماعات · Boardroom', tree_room: 'غرفة الاجتماعات الصغيرة · Meeting room' };
+const ROOM_NAMES = { oak_room: 'قاعة الاجتماعات · Boardroom', tree_room: 'غرفة الاجتماعات · Meeting room' };
 
 async function loadDashboard() {
   const today = todayStr();

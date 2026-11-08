@@ -134,8 +134,8 @@ function renderDayView(container) {
 
   const header = `<div style="display:grid;grid-template-columns:72px 1fr 1fr;background:var(--beige);border-bottom:2px solid var(--grey-border);">
     <div style="padding:10px 12px;font-size:11px;font-weight:600;color:var(--text-muted);border-right:1px solid var(--grey-border);">الوقت</div>
-    <div style="padding:10px 12px;font-size:12px;font-weight:700;color:var(--navy);border-right:1px solid var(--grey-border);">غرفة الاجتماعات · Boardroom</div>
-    <div style="padding:10px 12px;font-size:12px;font-weight:700;color:var(--green);">غرفة الاجتماعات الصغيرة · Meeting room</div>
+    <div style="padding:10px 12px;font-size:12px;font-weight:700;color:var(--navy);border-right:1px solid var(--grey-border);">قاعة الاجتماعات · Boardroom</div>
+    <div style="padding:10px 12px;font-size:12px;font-weight:700;color:var(--green);">غرفة الاجتماعات · Meeting room</div>
   </div>`;
 
   const rows = slots.map(time => {

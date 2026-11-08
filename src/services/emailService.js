@@ -197,7 +197,7 @@ async function sendMeetingInvitations(booking, { updated = false } = {}) {
     const html = `<div style="${baseStyle}">
       ${brandHeader(updated ? 'تحديث دعوة اجتماع' : 'دعوة اجتماع', OLIVE)}
       <div style="${bodyStyle}">
-        <h2 style="color:${NAVY};margin-top:0;">لديك دعوة اجتماع في قاعة ${esc(booking.room_name)}</h2>
+        <h2 style="color:${NAVY};margin-top:0;">لديك دعوة اجتماع في ${esc(booking.room_name)}</h2>
         <p>مرحباً ${esc(a.name || '')}،</p>
         <p>${updated ? 'تم تعديل موعد الاجتماع التالي' : 'دعاك'} <strong>${esc(booking.employee_name)}</strong> ${updated ? '' : 'إلى اجتماع'}:</p>
         ${bookingTable(booking, SAND, OLIVE, `<tr><td style="${tdLabel}">المنظم</td><td style="${tdValue}">${esc(booking.employee_name)}</td></tr>`)}

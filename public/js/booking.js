@@ -12,8 +12,8 @@ let knownPeople      = [];   // [{ name, email }] seen in earlier bookings
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const FALLBACK_ROOMS = {
-  oak_room:  { name: 'غرفة الاجتماعات · Boardroom', capacity: 12 },
-  tree_room: { name: 'غرفة الاجتماعات الصغيرة · Meeting room', capacity: 4 }
+  oak_room:  { name: 'قاعة الاجتماعات · Boardroom', capacity: 12 },
+  tree_room: { name: 'غرفة الاجتماعات · Meeting room', capacity: 4 }
 };
 
 function esc(str) {
