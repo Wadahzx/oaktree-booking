@@ -278,7 +278,7 @@ async function openEditModal(id) {
     document.getElementById('editPurpose').value   = b.purpose;
     setCategoryValue('editCategory', 'editCategoryOther', b.category);
     let _att = []; try { _att = JSON.parse(b.attendees || '[]'); } catch (e) {}
-    document.getElementById('editAttendees').value = _att.map(a => a.email).join('\n');
+    chipList = _att.map(a => a.email); renderChips();
     document.getElementById('editNotes').value     = b.notes || '';
     document.getElementById('editDuration').value  = b.duration;
 
@@ -359,11 +359,37 @@ async function saveEdit() {
   }
 }
 
+let chipList = [];
+const CHIP_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+function renderChips() {
+  const box = document.getElementById('editChips');
+  box.innerHTML = '';
+  chipList.forEach((em, i) => {
+    const c = document.createElement('span'); c.className = 'attendee-chip'; c.textContent = em;
+    const x = document.createElement('button'); x.type = 'button'; x.textContent = '×'; x.setAttribute('aria-label', 'حذف');
+    x.addEventListener('click', () => { chipList.splice(i, 1); renderChips(); });
+    c.appendChild(x); box.appendChild(c);
+  });
+}
+function addChipFromInput() {
+  const inp = document.getElementById('editAttendeeInput');
+  inp.value.split(/[\s,;،]+/).map(v => v.trim().toLowerCase()).filter(v => CHIP_RE.test(v)).forEach(v => { if (!chipList.includes(v)) chipList.push(v); });
+  if (!inp.value || CHIP_RE.test(inp.value.trim().toLowerCase())) inp.value = '';
+  renderChips();
+}
+document.addEventListener('DOMContentLoaded', () => {
+  const inp = document.getElementById('editAttendeeInput');
+  if (!inp) return;
+  inp.addEventListener('keydown', e => { if (['Enter', ',', ' '].includes(e.key)) { e.preventDefault(); addChipFromInput(); } });
+  inp.addEventListener('blur', addChipFromInput);
+});
+
 // Emails typed in the edit box, keeping names we already know
 function parseAttendees() {
   let known = {}; try { JSON.parse(editBookingData.attendees || '[]').forEach(a => known[a.email] = a.name); } catch (e) {}
   const seen = new Set();
-  return document.getElementById('editAttendees').value.split(/[\s,;،]+/).map(x => x.trim().toLowerCase()).filter(x => x && !seen.has(x) && seen.add(x))
+  addChipFromInput();
+  return chipList.filter(x => x && !seen.has(x) && seen.add(x))
     .map(email => ({ email, name: known[email] || '' }));
 }
 

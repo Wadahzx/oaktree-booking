@@ -18,6 +18,39 @@ router.get('/', async (req, res) => {
   }
 });
 
+// Weekly usage stats (Sun-Thu working week), no personal emails
+router.get('/stats', async (req, res) => {
+  try {
+    const now = nowInRiyadh();
+    const pad = n => String(n).padStart(2, '0');
+    const ymd = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    const start = new Date(now); start.setDate(now.getDate() - now.getDay()); // Sunday
+    const end = new Date(start); end.setDate(start.getDate() + 6);
+    const rows = await all(`SELECT b.room_id, b.employee_name, b.start_time, b.duration, r.name AS room_name
+      FROM bookings b JOIN rooms r ON r.id = b.room_id
+      WHERE b.status = 'confirmed' AND b.date >= ? AND b.date <= ?`, [ymd(start), ymd(end)]);
+    const cfg = Object.fromEntries((await all('SELECT key, value FROM admin_settings')).map(r => [r.key, r.value]));
+    const toMin = t => { const [h, m] = String(t || '0:0').split(':').map(Number); return h * 60 + m; };
+    const dayMins = Math.max(60, toMin(cfg.office_hours_end || '18:00') - toMin(cfg.office_hours_start || '08:00'));
+    const capacity = dayMins * 5; // 5 working days per room
+    const rooms = await all("SELECT id, name FROM rooms WHERE status != 'inactive' ORDER BY name");
+    const perRoom = rooms.map(r => {
+      const mine = rows.filter(b => b.room_id === r.id);
+      const mins = mine.reduce((a, b) => a + Number(b.duration || 0), 0);
+      return { room_id: r.id, room_name: r.name, bookings: mine.length, hours: Math.round(mins / 6) / 10, utilization: Math.min(100, Math.round(mins * 100 / capacity)) };
+    });
+    const byName = {};
+    rows.forEach(b => { const k = (b.employee_name || '').trim(); if (k) byName[k] = (byName[k] || 0) + 1; });
+    const top = Object.entries(byName).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([name, count]) => ({ name, count }));
+    const peak = {};
+    rows.forEach(b => { const h = Math.floor(toMin(b.start_time) / 60); peak[h] = (peak[h] || 0) + 1; });
+    const peak_hours = Object.keys(peak).map(Number).sort((a, b) => a - b).map(h => ({ hour: h, count: peak[h] }));
+    res.json({ success: true, data: { from: ymd(start), to: ymd(end), total: rows.length, rooms: perRoom, top_bookers: top, peak_hours } });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 router.get('/availability', async (req, res) => {
   try {
     const { date } = req.query;

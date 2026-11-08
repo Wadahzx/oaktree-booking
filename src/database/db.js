@@ -84,6 +84,11 @@ async function initializeDatabase() {
       value TEXT NOT NULL,
       updated_at TIMESTAMPTZ DEFAULT NOW()
     );
+    CREATE TABLE IF NOT EXISTS rate_limits (
+      key TEXT PRIMARY KEY,
+      count INTEGER NOT NULL,
+      window_start TIMESTAMPTZ NOT NULL
+    );
     CREATE TABLE IF NOT EXISTS email_codes (
       id TEXT PRIMARY KEY,
       email TEXT NOT NULL,

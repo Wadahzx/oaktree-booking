@@ -29,19 +29,8 @@ function fold(line) {
  * @param {'REQUEST'|'CANCEL'} p.method
  * @param {number} p.sequence  bump on every update so calendars replace the old copy
  */
-function buildIcs({ booking, attendees = [], method = 'REQUEST', sequence = 0 }) {
-  const cancelled = method === 'CANCEL';
-  const people = [
-    { name: booking.employee_name, email: booking.employee_email },
-    ...attendees
-  ];
-
+function eventLines(booking, people, cancelled, sequence) {
   const lines = [
-    'BEGIN:VCALENDAR',
-    'PRODID:-//Oaktree Group//Meeting Rooms//AR',
-    'VERSION:2.0',
-    'CALSCALE:GREGORIAN',
-    `METHOD:${method}`,
     'BEGIN:VEVENT',
     `UID:${booking.id}@oaktree-booking`,
     `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')}`,
@@ -55,12 +44,31 @@ function buildIcs({ booking, attendees = [], method = 'REQUEST', sequence = 0 })
     `ORGANIZER;CN=${esc(booking.employee_name)}:mailto:${booking.employee_email}`,
     ...people.map(p => `ATTENDEE;CN=${esc(p.name || p.email)};ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=TRUE:mailto:${p.email}`)
   ];
+  if (!cancelled) lines.push('BEGIN:VALARM', 'TRIGGER:-PT15M', 'ACTION:DISPLAY', 'DESCRIPTION:تذكير بالاجتماع', 'END:VALARM');
+  lines.push('END:VEVENT');
+  return lines;
+}
 
-  if (!cancelled) {
-    lines.push('BEGIN:VALARM', 'TRIGGER:-PT15M', 'ACTION:DISPLAY', 'DESCRIPTION:تذكير بالاجتماع', 'END:VALARM');
-  }
-  lines.push('END:VEVENT', 'END:VCALENDAR');
-
+/**
+ * @param {object} p
+ * @param {object} p.booking   booking row
+ * @param {Array}  p.attendees [{name, email}] (the organizer is added automatically)
+ * @param {Array}  p.series    extra booking rows of a recurring series (one VEVENT each)
+ * @param {'REQUEST'|'CANCEL'} p.method
+ * @param {number} p.sequence
+ */
+function buildIcs({ booking, attendees = [], series = [], method = 'REQUEST', sequence = 0 }) {
+  const cancelled = method === 'CANCEL';
+  const people = [{ name: booking.employee_name, email: booking.employee_email }, ...attendees];
+  const lines = [
+    'BEGIN:VCALENDAR',
+    'PRODID:-//Oaktree Group//Meeting Rooms//AR',
+    'VERSION:2.0',
+    'CALSCALE:GREGORIAN',
+    `METHOD:${method}`
+  ];
+  for (const b of [booking, ...series]) lines.push(...eventLines(b, people, cancelled, sequence));
+  lines.push('END:VCALENDAR');
   return lines.map(fold).join('\r\n') + '\r\n';
 }
 

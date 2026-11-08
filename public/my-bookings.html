@@ -188,8 +188,10 @@
           </div>
         </div>
         <div class="form-group">
-          <label for="editAttendees">المشاركون <span style="font-weight:400;color:var(--text-muted)">(بريد إلكتروني في كل سطر)</span></label>
-          <textarea id="editAttendees" rows="3" placeholder="name@oaktree.com" style="direction:ltr;text-align:left"></textarea>
+          <label for="editAttendeeInput">المشاركون <span style="font-weight:400;color:var(--text-muted)">(اكتب البريد ثم Enter)</span></label>
+          <div class="attendee-box"><div class="attendee-chips" id="editChips"></div>
+            <input type="text" id="editAttendeeInput" placeholder="name@oaktree.com" style="direction:ltr;text-align:left" autocomplete="off"></div>
+          <input type="hidden" id="editAttendees">
         </div>
         <div class="form-group">
           <label for="editNotes">ملاحظات</label>

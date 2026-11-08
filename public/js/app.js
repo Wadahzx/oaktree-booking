@@ -19,6 +19,16 @@ async function api(method, path, body) {
   return data;
 }
 
+// Verified-email session (shared by "My bookings" and the booking form)
+function getUserSession() {
+  try {
+    const s = JSON.parse(sessionStorage.getItem('oaktreeUser') || 'null');
+    return s && s.token && s.exp > Date.now() ? s : null;
+  } catch (e) { return null; }
+}
+function setUserSession(r) { sessionStorage.setItem('oaktreeUser', JSON.stringify({ token: r.token, email: r.email, exp: r.expires })); }
+function clearUserSession() { sessionStorage.removeItem('oaktreeUser'); }
+
 const GET    = (p, q)    => api('GET',    p + (q ? '?' + new URLSearchParams(q) : ''), null);
 const POST   = (p, b)    => api('POST',   p, b);
 const PUT    = (p, b)    => api('PUT',    p, b);

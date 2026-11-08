@@ -118,7 +118,18 @@
             </div>
             <span class="text-sm text-muted" id="roomStatusDate"></span>
           </div>
-          <div class="card-body">
+          <div class="card mb-3" id="weekStats">
+        <div class="card-header"><div class="card-title">إحصائيات هذا الأسبوع</div></div>
+        <div class="card-body">
+          <div class="stats-cols">
+            <div><div class="stats-h">نسبة استخدام القاعات</div><div id="wsRooms"></div></div>
+            <div><div class="stats-h">الأكثر حجزاً</div><div id="wsTop"></div></div>
+            <div><div class="stats-h">أوقات الذروة</div><div id="wsPeak" class="peak-bars"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card-body">
             <div class="rooms-grid" id="roomsStatus">
               <div class="empty-state" style="padding:30px 0">
                 <div class="spinner spinner-dark"></div>

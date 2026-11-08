@@ -3,7 +3,8 @@ const router = express.Router();
 const { randomUUID } = require('crypto');
 const { all, get, run } = require('../database/db');
 const { sendBookingConfirmation, sendMeetingInvitations, sendCancellationNotification, sendLoginCode } = require('../services/emailService');
-const { issueUserToken, userEmail, isAdmin, hashCode, newCode, sameHash } = require('../services/userAuth');
+const { issueUserToken, userEmail, isAdmin, hashCode, newCode, sameHash, allowedEmail } = require('../services/userAuth');
+const { hit, clientIp } = require('../services/rateLimit');
 const { getDaySchedule } = require('../services/schedule');
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -54,6 +55,9 @@ router.post('/auth/request', async (req, res) => {
   try {
     const email = String(req.body.email || '').trim().toLowerCase();
     if (!EMAIL_RE.test(email)) return res.status(400).json({ success: false, error: 'يرجى إدخال بريد إلكتروني صحيح.' });
+    if (!allowedEmail(email)) return res.status(403).json({ success: false, error: 'يُسمح ببريد الشركة فقط. استخدم بريد العمل.' });
+    const ip = await hit(`code-ip:${clientIp(req)}`, 20, 3600);
+    if (!ip.ok) return res.status(429).json({ success: false, error: 'طلبات كثيرة من هذا الجهاز. حاول بعد ساعة.' });
     const recent = await get("SELECT COUNT(*) AS c FROM email_codes WHERE email = ? AND created_at > NOW() - INTERVAL '60 seconds'", [email]);
     if (parseInt(recent.c) > 0) return res.status(429).json({ success: false, error: 'تم إرسال رمز قبل قليل. انتظر دقيقة ثم حاول مرة أخرى.' });
     const hour = await get("SELECT COUNT(*) AS c FROM email_codes WHERE email = ? AND created_at > NOW() - INTERVAL '1 hour'", [email]);
@@ -123,6 +127,9 @@ router.get('/', async (req, res) => {
 // GET /api/bookings/people  - names + emails seen before (for the invitee picker; no booking details)
 router.get('/people', async (req, res) => {
   try {
+    if (!isAdmin(req) && !userEmail(req)) return res.status(401).json(NEED_AUTH);
+    const q = String(req.query.q || '').trim().toLowerCase();
+    if (!q) return res.json({ success: true, data: [] });
     const rows = await all('SELECT employee_name, employee_email, attendees FROM bookings ORDER BY created_at DESC LIMIT 1000');
     const map = new Map();
     const add = (name, email) => {
@@ -135,7 +142,9 @@ router.get('/people', async (req, res) => {
       add(r.employee_name, r.employee_email);
       try { for (const a of JSON.parse(r.attendees || '[]')) add(a.name, a.email); } catch { /* ignore */ }
     }
-    res.json({ success: true, data: [...map.values()].sort((a, b) => (a.name || a.email).localeCompare(b.name || b.email)) });
+    const found = [...map.values()].filter(p => p.email.includes(q) || (p.name || '').toLowerCase().includes(q))
+      .sort((a, b) => (a.name || a.email).localeCompare(b.name || b.email)).slice(0, 8);
+    res.json({ success: true, data: found });
   } catch (e) {
     res.status(500).json({ success: false, error: e.message });
   }
@@ -156,6 +165,7 @@ router.get('/:id', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const { employee_name, employee_email, room_id, date, start_time, duration, purpose, category, notes } = req.body;
+    if (!employee_email || (!isAdmin(req) && userEmail(req) !== String(employee_email).trim().toLowerCase())) return res.status(401).json(NEED_AUTH);
 
     if (!employee_name || !employee_email || !room_id || !date || !start_time || !duration || !purpose) {
       return res.status(400).json({ success: false, error: 'يرجى تعبئة جميع الحقول المطلوبة.' });
@@ -224,14 +234,42 @@ router.post('/', async (req, res) => {
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [id, employee_name.trim(), employee_email.trim().toLowerCase(), room_id, date, start_time, end_time, durMins, purpose.trim(), category || 'meeting', notes || '', JSON.stringify(att.list)]);
 
+    // Optional recurrence: same room/time on later dates (conflicts are skipped)
+    const series = [];
+    const skipped = [];
+    const rep = req.body.repeat;
+    if (rep && ['daily', 'workdays', 'weekly'].includes(rep.pattern) && /^\d{4}-\d{2}-\d{2}$/.test(rep.until || '')) {
+      const first = new Date(`${date}T00:00:00Z`);
+      const limit = new Date(Math.min(new Date(`${rep.until}T00:00:00Z`).getTime(), first.getTime() + 180 * 86400000));
+      const step = rep.pattern === 'weekly' ? 7 : 1;
+      let cur = new Date(first.getTime() + step * 86400000);
+      while (cur <= limit && series.length < 59) {
+        const d = cur.toISOString().slice(0, 10);
+        const dow = cur.getUTCDay(); // 0=Sun .. 4=Thu; Fri/Sat weekend
+        cur = new Date(cur.getTime() + step * 86400000);
+        if (rep.pattern !== 'weekly' && (dow === 5 || dow === 6)) continue;
+        const clash = await get(`SELECT 1 AS x FROM bookings WHERE room_id = ? AND date = ? AND status = 'confirmed' AND NOT (end_time <= ? OR start_time >= ?)`, [room_id, d, start_time, end_time])
+          || await get(`SELECT 1 AS x FROM admin_blocks WHERE room_id = ? AND date = ? AND NOT (end_time <= ? OR start_time >= ?)`, [room_id, d, start_time, end_time]);
+        if (clash) { skipped.push(d); continue; }
+        const sid = randomUUID();
+        await run(`INSERT INTO bookings (id, employee_name, employee_email, room_id, date, start_time, end_time, duration, purpose, category, notes, attendees, is_recurring, recurrence_pattern, recurrence_end_date)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
+          [sid, employee_name.trim(), employee_email.trim().toLowerCase(), room_id, d, start_time, end_time, durMins, purpose.trim(), category || 'meeting', notes || '', JSON.stringify(att.list), rep.pattern, rep.until]);
+        series.push(sid);
+      }
+      if (series.length) await run('UPDATE bookings SET is_recurring = 1, recurrence_pattern = ?, recurrence_end_date = ? WHERE id = ?', [rep.pattern, rep.until, id]);
+    }
+
     const booking = await get('SELECT b.*, r.name as room_name FROM bookings b JOIN rooms r ON b.room_id = r.id WHERE b.id = ?', [id]);
-    sendBookingConfirmation(booking).catch(e => console.error('Email err:', e));
-    sendMeetingInvitations(booking).catch(e => console.error('Invite err:', e));
+    const seriesRows = [];
+    for (const sid of series) seriesRows.push(await get('SELECT b.*, r.name as room_name FROM bookings b JOIN rooms r ON b.room_id = r.id WHERE b.id = ?', [sid]));
+    sendBookingConfirmation(booking, seriesRows).catch(e => console.error('Email err:', e));
+    sendMeetingInvitations(booking, { series: seriesRows }).catch(e => console.error('Invite err:', e));
 
     await run(`INSERT INTO audit_log (id, action, entity_type, entity_id, details, performed_by) VALUES (?, 'CREATE', 'booking', ?, ?, ?)`,
       [randomUUID(), id, JSON.stringify({ employee_name, room_id, date, start_time, end_time, attendees: att.list.length }), employee_email.toLowerCase()]);
 
-    res.status(201).json({ success: true, data: booking });
+    res.status(201).json({ success: true, data: booking, series_created: series.length, series_skipped: skipped });
   } catch (e) {
     res.status(500).json({ success: false, error: e.message });
   }

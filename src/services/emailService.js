@@ -184,7 +184,7 @@ function parseAttendees(b) {
 const sequenceOf = b => Math.floor(new Date(b.updated_at || Date.now()).getTime() / 60000);
 
 // ── Organizer confirmation (with calendar invite) ───────────
-async function sendBookingConfirmation(booking) {
+async function sendBookingConfirmation(booking, series = []) {
   const attendees = parseAttendees(booking);
   const names = attendees.map(a => esc(a.name || a.email)).join('، ');
   const html = `<div style="${baseStyle}">
@@ -194,20 +194,21 @@ async function sendBookingConfirmation(booking) {
       <p>مرحباً ${esc(booking.employee_name)}،</p>
       <p>تم حجز القاعة بنجاح. تفاصيل الحجز:</p>
       ${bookingTable(booking, SAND, OLIVE, attendees.length ? `<tr><td style="${tdLabel}">المدعوون</td><td style="${tdValue}">${names}</td></tr>` : '')}
+      ${series.length ? `<p style="font-size:14px;"><strong>حجز متكرر:</strong> تم أيضاً حجز ${series.length} موعداً آخر:<br>${series.map(b => esc(fmtDate(b.date))).join('<br>')}</p>` : ''}
       <p style="color:#6b6b6b;font-size:14px;">${attendees.length ? 'أُرسلت دعوة الاجتماع إلى المشاركين، وأُرفقت دعوة التقويم بهذه الرسالة. ' : ''}سيصلك تذكير قبل بدء الاجتماع بـ 15 دقيقة.</p>
       <p style="color:#6b6b6b;font-size:14px;">لإلغاء الحجز أو تعديله، افتح صفحة <strong>حجوزاتي</strong> في نظام الحجز.</p>
       <p style="${footerStyle}">نظام حجز غرف الاجتماعات | Oaktree Group</p>
     </div>
   </div>`;
-  const ics = { method: 'REQUEST', content: buildIcs({ booking, attendees, method: 'REQUEST', sequence: sequenceOf(booking) }) };
+  const ics = { method: 'REQUEST', content: buildIcs({ booking, attendees, series, method: 'REQUEST', sequence: sequenceOf(booking) }) };
   await sendEmail(booking.employee_email, `تأكيد الحجز: ${booking.room_name}، ${fmtDate(booking.date)}`, html, ics);
 }
 
 // ── Invitation to each attendee (shows as a calendar invite) ─
-async function sendMeetingInvitations(booking, { updated = false } = {}) {
+async function sendMeetingInvitations(booking, { updated = false, series = [] } = {}) {
   const attendees = parseAttendees(booking);
   if (!attendees.length) return;
-  const ics = { method: 'REQUEST', content: buildIcs({ booking, attendees, method: 'REQUEST', sequence: sequenceOf(booking) }) };
+  const ics = { method: 'REQUEST', content: buildIcs({ booking, attendees, series, method: 'REQUEST', sequence: sequenceOf(booking) }) };
 
   for (const a of attendees) {
     const html = `<div style="${baseStyle}">
@@ -277,11 +278,11 @@ async function sendReminderEmail(booking) {
   const recipients = [{ name: booking.employee_name, email: booking.employee_email }, ...parseAttendees(booking)];
   for (const r of recipients) {
     const html = `<div style="${baseStyle}">
-      ${brandHeader('تذكير بالاجتماع قبل 15 دقيقة', OLIVE)}
+      ${brandHeader('تذكير بالاجتماع', OLIVE)}
       <div style="${bodyStyle}">
-        <h2 style="color:${OLIVE};margin-top:0;">يبدأ اجتماعك بعد 15 دقيقة</h2>
+        <h2 style="color:${OLIVE};margin-top:0;">اجتماعك قريباً</h2>
         <p>مرحباً ${esc(r.name || '')}،</p>
-        <p>تذكير بأن اجتماعك سيبدأ قريباً.</p>
+        <p>تذكير باجتماعك القادم في ${fmtDate(booking.date)}.</p>
         <div style="background:${SAND};border-right:4px solid ${OLIVE};padding:16px;margin:20px 0;border-radius:4px;">
           <table style="${tableStyle}">
             <tr><td style="${tdLabel}">القاعة</td><td style="${tdValue}">${esc(booking.room_name)}</td></tr>
@@ -292,26 +293,33 @@ async function sendReminderEmail(booking) {
         <p style="${footerStyle}">هذا تذكير تلقائي من نظام حجز غرف الاجتماعات | Oaktree Group</p>
       </div>
     </div>`;
-    try { await sendEmail(r.email, `تذكير: ${booking.room_name}، الاجتماع بعد 15 دقيقة`, html); }
+    try { await sendEmail(r.email, `تذكير: ${booking.room_name}، الاجتماع الساعة ${fmt12(booking.start_time)}`, html); }
     catch (e) { console.error('Reminder email err:', r.email, e.message); }
   }
 }
 
-async function sendReminderEmails() {
+// Sends a reminder for every confirmed booking starting within the next `windowMins` minutes
+// (default 30) that has not been reminded yet. Safe to call as often as you like.
+async function sendReminderEmails(windowMins = 30) {
   const tz = 'Asia/Riyadh';
-  const in15 = new Date(Date.now() + 15 * 60 * 1000);
-  const dateStr = in15.toLocaleDateString('en-CA', { timeZone: tz });
-  const timeStr = in15.toLocaleTimeString('en-GB', { timeZone: tz, hour: '2-digit', minute: '2-digit', hour12: false });
+  const now = Date.now();
+  const day = ms => new Date(ms).toLocaleDateString('en-CA', { timeZone: tz });
+  const dates = [...new Set([day(now), day(now + windowMins * 60000)])];
 
-  const bookings = await all(`
+  const rows = await all(`
     SELECT b.*, r.name as room_name FROM bookings b JOIN rooms r ON b.room_id=r.id
-    WHERE b.date=? AND b.start_time=? AND b.status='confirmed' AND b.reminder_sent=0
-  `, [dateStr, timeStr]);
+    WHERE b.date = ANY(?) AND b.status='confirmed' AND b.reminder_sent=0
+  `, [dates]);
 
-  for (const b of bookings) {
+  let sent = 0;
+  for (const b of rows) {
+    const start = new Date(`${b.date}T${b.start_time}:00+03:00`).getTime();   // Riyadh is UTC+3 all year
+    if (start < now || start > now + windowMins * 60000) continue;
     await sendReminderEmail(b);
     await run('UPDATE bookings SET reminder_sent=1 WHERE id=?', [b.id]);
+    sent++;
   }
+  return sent;
 }
 
 async function sendLoginCode(to, code) {

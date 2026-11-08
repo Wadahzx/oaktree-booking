@@ -1,88 +1,52 @@
-# Oaktree Group — Meeting Room Booking System
+# نظام حجز غرف الاجتماعات — مجموعة Oaktree
 
-Internal meeting room reservation platform for Oaktree Group HQ.
+نظام داخلي لحجز قاعة الاجتماعات وغرفة الاجتماعات في المقر الرئيسي. الواجهة بالعربية مع زر للتبديل إلى الإنجليزية، ويدعم الوضعين الفاتح والداكن.
 
-## Quick Start
+## المميزات
+- حجز الغرف مع اقتراح أوقات بديلة عند وجود تعارض.
+- التحقق من البريد برمز يصل إلى صندوق الوارد قبل الحجز، وقبل عرض «حجوزاتي» أو تعديلها أو إلغائها.
+- دعوات الاجتماع (ملف تقويم ICS) للمشاركين، وزر «إضافة إلى التقويم» بعد الحجز.
+- حجز متكرر (أسبوعي، كل يوم عمل، أو يومي) مع تخطي الأيام المحجوزة.
+- تذكير بالبريد قبل الاجتماع.
+- تقويم بعرض يومي وأسبوعي وفلتر حسب القاعة.
+- إحصائيات الأسبوع في لوحة التحكم: نسبة استخدام القاعات، الأكثر حجزاً، وأوقات الذروة.
+- لوحة إدارة محمية برمز، مع حجب أوقات وحجوزات متكررة وسجل عمليات.
 
-### 1. Install Node.js
-Download and install Node.js (v18+) from: https://nodejs.org
-
-### 2. Install dependencies
-Open a terminal in this folder and run:
+## التشغيل محلياً
 ```
 npm install
+cp .env.example .env     # عدّل القيم
+npm start                # http://localhost:3000
 ```
+يلزم Node.js 18 أو أحدث، وقاعدة بيانات PostgreSQL (مثل Supabase).
 
-### 3. Start the server
+## النشر على Vercel
+1. ارفع المشروع إلى GitHub واربطه بـ Vercel (الفرع `master`).
+2. أضف المتغيرات التالية في Settings ← Environment Variables ثم أعد النشر:
+
+| المتغير | مطلوب | الوصف |
+|---|---|---|
+| `DATABASE_URL` | نعم | رابط اتصال PostgreSQL |
+| `ADMIN_CODE` | نعم | رمز دخول الإدارة (لا توجد قيمة افتراضية؛ بدونه تُقفل الإدارة) |
+| `RESEND_API_KEY` | نعم | مفتاح Resend لإرسال الرموز والتأكيدات |
+| `RESEND_FROM` | نعم | عنوان المرسل من نطاق موثّق في Resend |
+| `APP_URL` | يُنصح | رابط الموقع (يظهر الشعار في الرسائل) |
+| `CRON_SECRET` | اختياري | يحمي مسار التذكيرات `/api/cron/reminders` |
+| `ALLOWED_EMAIL_DOMAINS` | اختياري | حصر الحجز على نطاقات معينة، مثل `oaktree.sa` |
+| `SESSION_SECRET` | اختياري | مفتاح توقيع الجلسات |
+
+## التذكيرات
+ملف `vercel.json` يشغّل مهمة يومية الساعة 7:00 صباحاً بتوقيت الرياض (حدّ الخطة المجانية Hobby). لتذكير قبل الاجتماع بـ 15–30 دقيقة، استدعِ `/api/cron/reminders` كل 15 دقيقة من خدمة خارجية (مثل cron-job.org) مع الترويسة `Authorization: Bearer <CRON_SECRET>`.
+
+## الاختبارات
 ```
-npm start
+DATABASE_URL=postgres://... npm test
 ```
+تُشغَّل نسخة من الخادم على منفذ عشوائي وتُختبر مسارات التحقق والحجز والتعارض والتكرار والتذكيرات. استخدم قاعدة بيانات تجريبية وليس قاعدة الإنتاج.
 
-Or for development with auto-restart:
-```
-npm run dev
-```
-
-### 4. Open the app
-Visit: **http://localhost:3000**
-
----
-
-## Admin Access
-- Navigate to **http://localhost:3000/admin**
-- Enter the access code set in the `ADMIN_CODE` environment variable (set a strong one in production)
-
----
-
-## Email Setup (Optional)
-By default, emails are logged to the console. To enable real email delivery:
-1. Open the Admin Panel → Settings → Email / SMTP
-2. Enter your SMTP credentials (Office 365, Gmail, etc.)
-3. Enable "Email Notifications"
-
-Or edit `.env`:
-```
-SMTP_HOST=smtp.office365.com
-SMTP_PORT=587
-SMTP_USER=your-email@oaktree.com
-SMTP_PASS=your-password
-SMTP_FROM=noreply@oaktree.com
-```
-
----
-
-## Features
-- **Two meeting rooms**: Boardroom (12 people), Meeting room (4 people)
-- **No login required** for employees — just enter name + email when booking
-- **Admin panel** with full management controls
-- **Email notifications**: booking confirmation, cancellation, override alerts, 15-min reminders
-- **Calendar view**: day and week views with color-coded bookings
-- **Dark mode** toggle
-- **Booking rules**: office hours (8am–6pm), max 2 hours, 30-min slots
-- **Admin features**: block slots, recurring bookings, analytics, audit log
-
----
-
-## Project Structure
-```
-oaktree-booking/
-├── server.js              # Express server + cron jobs
-├── src/
-│   ├── database/db.js     # SQLite setup + schema
-│   ├── routes/
-│   │   ├── bookings.js    # Employee booking CRUD
-│   │   ├── admin.js       # Admin operations
-│   │   └── rooms.js       # Room availability
-│   └── services/
-│       └── emailService.js # Nodemailer email service
-├── public/
-│   ├── index.html         # Dashboard
-│   ├── book.html          # Book a room
-│   ├── calendar.html      # Calendar view
-│   ├── my-bookings.html   # My reservations
-│   ├── admin.html         # Admin panel
-│   ├── css/styles.css     # Full design system
-│   └── js/                # Page-specific scripts
-└── data/
-    └── oaktree.db         # SQLite database (auto-created)
-```
+## هيكل المشروع
+- `server.js` نقطة الدخول.
+- `src/routes` مسارات الواجهة البرمجية (bookings, rooms, admin).
+- `src/services` البريد، التقويم (ICS)، التحقق، تحديد المعدل.
+- `src/database` الاتصال وإنشاء الجداول.
+- `public` الواجهة (HTML/CSS/JS)، و`public/js/en.js` طبقة الترجمة الإنجليزية.

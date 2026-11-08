@@ -45,15 +45,22 @@ app.get('/api/public/settings', async (req, res) => {
   }
 });
 
-// Cron endpoint — Vercel calls this every minute (Pro plan) to send reminders
-app.post('/api/cron/reminders', async (req, res) => {
+// Reminder job. Vercel Cron calls it with GET (daily on the Hobby plan, see vercel.json);
+// an external pinger can call it every 15 minutes. If CRON_SECRET is set it must be sent as
+// "Authorization: Bearer <secret>" (Vercel does this automatically).
+async function reminderJob(req, res) {
+  const secret = process.env.CRON_SECRET;
+  if (secret && req.headers.authorization !== `Bearer ${secret}`) return res.status(401).json({ ok: false, error: 'unauthorized' });
   try {
-    await sendReminderEmails();
-    res.json({ ok: true });
+    const win = Math.min(Math.max(parseInt(req.query.window) || 30, 1), 1440);
+    const sent = await sendReminderEmails(win);
+    res.json({ ok: true, window_minutes: win, reminders_sent: sent });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
   }
-});
+}
+app.get('/api/cron/reminders', reminderJob);
+app.post('/api/cron/reminders', reminderJob);
 
 app.get('/',            (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 app.get('/book',        (req, res) => res.sendFile(path.join(__dirname, 'public', 'book.html')));

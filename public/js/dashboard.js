@@ -212,4 +212,21 @@ function escHtml(str) {
   return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-document.addEventListener('DOMContentLoaded', loadDashboard);
+async function loadWeekStats() {
+  try {
+    const { data } = await GET('/rooms/stats');
+    const rooms = document.getElementById('wsRooms');
+    rooms.innerHTML = data.rooms.map(r => `<div class="ws-row"><div class="ws-label">${escHtml(r.room_name)} <span class="ws-sub">${r.bookings} حجز · ${r.hours} ساعة</span></div>
+      <div class="ws-bar"><div style="width:${r.utilization}%"></div></div><div class="ws-pct">${r.utilization}%</div></div>`).join('') || '<div class="ws-sub">لا توجد بيانات</div>';
+    document.getElementById('wsTop').innerHTML = data.top_bookers.length
+      ? data.top_bookers.map((t, i) => `<div class="ws-top"><span>${i + 1}. ${escHtml(t.name)}</span><strong>${t.count}</strong></div>`).join('')
+      : '<div class="ws-sub">لا توجد حجوزات هذا الأسبوع</div>';
+    const max = Math.max(1, ...data.peak_hours.map(p => p.count));
+    document.getElementById('wsPeak').innerHTML = data.peak_hours.length
+      ? data.peak_hours.map(p => `<div class="pk"><div class="pk-bar" style="height:${Math.round(p.count * 60 / max) + 6}px" title="${p.count}"></div><div class="pk-h">${fmt12(String(p.hour).padStart(2, '0') + ':00')}</div></div>`).join('')
+      : '<div class="ws-sub">لا توجد بيانات</div>';
+  } catch (e) {
+    const c = document.getElementById('weekStats'); if (c) c.style.display = 'none';
+  }
+}
+document.addEventListener('DOMContentLoaded', () => { loadDashboard(); loadWeekStats(); });

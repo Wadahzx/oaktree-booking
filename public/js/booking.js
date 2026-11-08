@@ -56,9 +56,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     updateSummary();
   });
 
-  document.getElementById('employeeEmail').addEventListener('input', renderSuggestions);
+  initEmailVerify();
 
   document.getElementById('bookingForm').addEventListener('submit', handleSubmit);
+  const rt = document.getElementById('repeatToggle');
+  rt.addEventListener('change', () => {
+    document.getElementById('repeatBox').style.display = rt.checked ? '' : 'none';
+    document.getElementById('repeatHint').style.display = rt.checked ? '' : 'none';
+  });
   document.getElementById('successClose').addEventListener('click', () => {
     document.getElementById('successBanner').classList.add('hidden');
   });
@@ -277,8 +282,8 @@ function initAttendeePicker() {
   const box   = document.getElementById('attendeeBox');
   box.addEventListener('click', () => input.focus());
 
-  input.addEventListener('input', renderSuggestions);
-  input.addEventListener('focus', loadPeopleOnce);
+  input.addEventListener('input', () => fetchPeople(input.value));
+  input.addEventListener('focus', () => fetchPeople(input.value));
   input.addEventListener('keydown', e => {
     if (e.key === 'Enter' || e.key === ',' || e.key === ' ') {
       const v = input.value.trim().replace(/,$/, '');
@@ -302,12 +307,16 @@ function initAttendeePicker() {
   renderChips();
 }
 
-let peopleLoaded = false;
-async function loadPeopleOnce() {
-  if (peopleLoaded) return;
-  peopleLoaded = true;
-  try { knownPeople = (await GET('/bookings/people')).data || []; } catch { /* optional */ }
-  renderSuggestions();
+// Invitee suggestions are searched on the server (needs a verified email, returns at most 8 matches)
+let peopleTimer = null;
+function fetchPeople(q) {
+  clearTimeout(peopleTimer);
+  q = (q || '').trim();
+  if (!q || !getUserSession()) { knownPeople = []; renderSuggestions(); return; }
+  peopleTimer = setTimeout(async () => {
+    try { knownPeople = (await GET('/bookings/people', { q })).data || []; } catch { knownPeople = []; }
+    renderSuggestions();
+  }, 200);
 }
 
 function suggestionsFor(q) {
@@ -428,6 +437,7 @@ function validate() {
 
   if (!name)    { showError('nameError');     valid = false; }
   if (!email || !EMAIL_RE.test(email)) { showError('emailError'); valid = false; }
+  else if (!isEmailVerified()) { showVerifyError('يرجى التحقق من بريدك الإلكتروني قبل الحجز.'); valid = false; }
   if (!selectedRoom)     { showError('roomError');     valid = false; }
   if (!date)             { showError('dateError');     valid = false; }
   if (!selectedDuration) { showError('durationError'); valid = false; }
@@ -467,22 +477,33 @@ async function handleSubmit(e) {
       notes:     document.getElementById('meetingNotes').value.trim(),
       attendees
     };
+    if (document.getElementById('repeatToggle').checked) {
+      const until = document.getElementById('repeatUntil').value;
+      if (!until || until <= payload.date) throw new Error('اختر تاريخ نهاية التكرار بعد تاريخ الحجز.');
+      payload.repeat = { pattern: document.getElementById('repeatPattern').value, until };
+    }
 
-    const { data } = await POST('/bookings', payload);
+    const resp = await POST('/bookings', payload);
+    const data = resp.data;
+    const extra = resp.series_created || 0;
+    const extraSkipped = (resp.series_skipped || []).length;
     const name = roomName(data.room_id) || data.room_name;
     const invited = attendees.length;
 
     const banner = document.getElementById('successBanner');
     document.getElementById('successMsg').textContent =
       `تم حجز ${name} يوم ${fmtDate(data.date)} ${fmtRange(data.start_time, data.end_time)}. أُرسل التأكيد إلى ${data.employee_email}`
-      + (invited ? ` وأُرسلت دعوات الاجتماع إلى ${invited} ${invited === 1 ? 'مشارك' : 'مشاركين'}.` : '.');
+      + (invited ? ` وأُرسلت دعوات الاجتماع إلى ${invited} ${invited === 1 ? 'مشارك' : 'مشاركين'}.` : '.')
+      + (extra ? ` وتم حجز ${extra} موعداً متكرراً إضافياً${extraSkipped ? ` (تخطينا ${extraSkipped} لوجود حجوزات)` : ''}.` : '');
+    renderCalButtons(data, name);
     banner.classList.remove('hidden');
     banner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    setTimeout(() => banner.classList.add('hidden'), 8000);
+    setTimeout(() => banner.classList.add('hidden'), 20000);
 
     showToast('success', 'تم تأكيد الحجز!', `${name} محجوزة الساعة ${fmt12(data.start_time)}.`);
     resetForm();
   } catch (err) {
+    if (err.data && err.data.need_auth) { clearUserSession(); updateVerifyUI(); showVerifyError('انتهت جلسة التحقق. تحقق من بريدك مرة أخرى.'); }
     showToast('error', 'تعذّر الحجز', err.message);
     // Time taken meanwhile: show who has it and what is still free
     if (err.data && err.data.schedule) {
@@ -496,8 +517,38 @@ async function handleSubmit(e) {
   }
 }
 
+function utcStamp(date, time) {
+  const [y, m, d] = date.split('-').map(Number), [h, mi] = time.split(':').map(Number);
+  return new Date(Date.UTC(y, m - 1, d, h - 3, mi)).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+}
+function renderCalButtons(b, room) {
+  const box = document.getElementById('calButtons');
+  if (!box) return;
+  const s = utcStamp(b.date, b.start_time), e = utcStamp(b.date, b.end_time);
+  const g = 'https://calendar.google.com/calendar/render?action=TEMPLATE'
+    + '&text=' + encodeURIComponent(b.purpose) + '&dates=' + s + '/' + e
+    + '&location=' + encodeURIComponent(room || '') + '&ctz=Asia/Riyadh';
+  box.innerHTML = '';
+  const a1 = document.createElement('a');
+  a1.className = 'btn btn-secondary btn-sm'; a1.href = g; a1.target = '_blank'; a1.rel = 'noopener';
+  a1.textContent = 'إضافة إلى تقويم Google';
+  const a2 = document.createElement('button');
+  a2.type = 'button'; a2.className = 'btn btn-secondary btn-sm'; a2.textContent = 'تنزيل ملف التقويم (.ics)';
+  a2.addEventListener('click', () => {
+    const ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Oaktree//Rooms//AR', 'BEGIN:VEVENT',
+      'UID:' + b.id + '@oaktree-booking', 'DTSTAMP:' + utcStamp(b.date, b.start_time), 'DTSTART:' + s, 'DTEND:' + e,
+      'SUMMARY:' + String(b.purpose).replace(/[\r\n,;]/g, ' '), 'LOCATION:' + String(room || '').replace(/[\r\n,;]/g, ' '),
+      'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
+    const url = URL.createObjectURL(new Blob([ics], { type: 'text/calendar' }));
+    const l = document.createElement('a'); l.href = url; l.download = 'meeting.ics'; l.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  });
+  box.append(a1, a2);
+}
+
 function resetForm() {
   document.getElementById('bookingForm').reset();
+  document.getElementById('repeatBox').style.display = 'none'; document.getElementById('repeatHint').style.display = 'none';
   const co = document.getElementById('categoryOther'); if (co) { co.style.display = 'none'; co.value = ''; }
   selectedRoom = null;
   selectedDuration = null;
@@ -518,4 +569,78 @@ function resetForm() {
   showAttendeeError('');
   renderChips();
   setMinDateToday('bookingDate');
+}
+
+
+// ── EMAIL VERIFICATION (6 digit code, shared session with "My bookings") ──
+function isEmailVerified() {
+  const s = getUserSession();
+  return !!s && s.email === document.getElementById('employeeEmail').value.trim().toLowerCase();
+}
+
+function showVerifyError(msg) {
+  const el = document.getElementById('verifyError');
+  el.textContent = msg || '';
+  el.style.display = msg ? 'block' : 'none';
+}
+
+function updateVerifyUI() {
+  const verified = isEmailVerified();
+  const codeOpen = document.getElementById('verifyCodeRow').dataset.open === '1';
+  document.getElementById('verifiedBadge').style.display = verified ? 'flex' : 'none';
+  document.getElementById('verifyIdle').style.display = !verified && !codeOpen ? 'flex' : 'none';
+  document.getElementById('verifyCodeRow').style.display = !verified && codeOpen ? 'flex' : 'none';
+  if (verified) showVerifyError('');
+}
+
+function initEmailVerify() {
+  const emailEl = document.getElementById('employeeEmail');
+  const s = getUserSession();
+  if (s && !emailEl.value) emailEl.value = s.email;
+  emailEl.addEventListener('input', () => { document.getElementById('verifyCodeRow').dataset.open = '0'; updateVerifyUI(); });
+
+  document.getElementById('sendCodeBtn').addEventListener('click', () => sendBookingCode(false));
+  document.getElementById('bookResendBtn').addEventListener('click', () => sendBookingCode(true));
+  document.getElementById('bookVerifyBtn').addEventListener('click', confirmBookingCode);
+  document.getElementById('bookCode').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); confirmBookingCode(); } });
+  updateVerifyUI();
+}
+
+async function sendBookingCode(isResend) {
+  const email = document.getElementById('employeeEmail').value.trim().toLowerCase();
+  if (!EMAIL_RE.test(email)) { showError('emailError'); return; }
+  const btn = document.getElementById(isResend ? 'bookResendBtn' : 'sendCodeBtn');
+  btn.disabled = true;
+  try {
+    await POST('/bookings/auth/request', { email });
+    document.getElementById('verifyCodeRow').dataset.open = '1';
+    showVerifyError('');
+    updateVerifyUI();
+    document.getElementById('bookCode').value = '';
+    document.getElementById('bookCode').focus();
+    showToast('success', 'تم الإرسال', 'أرسلنا رمز التحقق إلى بريدك الإلكتروني.');
+  } catch (e) {
+    showVerifyError(e.message);
+  } finally {
+    setTimeout(() => { btn.disabled = false; }, isResend ? 5000 : 0);
+  }
+}
+
+async function confirmBookingCode() {
+  const email = document.getElementById('employeeEmail').value.trim().toLowerCase();
+  const code = document.getElementById('bookCode').value.trim();
+  if (!/^\d{6}$/.test(code)) { showVerifyError('أدخل الرمز المكوّن من 6 أرقام.'); return; }
+  const btn = document.getElementById('bookVerifyBtn');
+  btn.disabled = true;
+  try {
+    const r = await POST('/bookings/auth/verify', { email, code });
+    setUserSession(r);
+    document.getElementById('verifyCodeRow').dataset.open = '0';
+    updateVerifyUI();
+    showToast('success', 'تم التحقق', 'تم التحقق من بريدك الإلكتروني.');
+  } catch (e) {
+    showVerifyError(e.message);
+  } finally {
+    btn.disabled = false;
+  }
 }

@@ -2,7 +2,7 @@
 const crypto = require('crypto');
 
 const USER_TTL_MS = 4 * 60 * 60 * 1000;
-const secret = () => process.env.SESSION_SECRET || ((process.env.ADMIN_CODE || 'Fathima') + '|' + (process.env.DATABASE_URL || ''));
+const secret = () => process.env.SESSION_SECRET || ((process.env.ADMIN_CODE || '') + '|' + (process.env.DATABASE_URL || ''));
 const sign = payload => crypto.createHmac('sha256', secret()).update(payload).digest('base64url');
 
 function readSigned(token) {
@@ -38,4 +38,11 @@ const hashCode = (email, code) => crypto.createHash('sha256').update(`${String(e
 const newCode = () => String(crypto.randomInt(100000, 1000000));
 const sameHash = (a, b) => a.length === b.length && crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
 
-module.exports = { issueUserToken, userEmail, isAdmin, hashCode, newCode, sameHash };
+// Optional company-domain restriction: ALLOWED_EMAIL_DOMAINS=oaktree.sa,oaktree.com
+function allowedEmail(email) {
+  const list = String(process.env.ALLOWED_EMAIL_DOMAINS || '').split(',').map(s => s.trim().toLowerCase().replace(/^@/, '')).filter(Boolean);
+  if (!list.length) return true;
+  return list.includes(String(email).toLowerCase().split('@').pop());
+}
+
+module.exports = { allowedEmail, issueUserToken, userEmail, isAdmin, hashCode, newCode, sameHash };

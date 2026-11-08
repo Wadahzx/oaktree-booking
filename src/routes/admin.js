@@ -16,16 +16,26 @@ const logoUpload = multer({
   }
 });
 
-const ADMIN_CODE = process.env.ADMIN_CODE || 'Fathima';
+// No built-in default: the admin panel stays locked until ADMIN_CODE is set in the environment.
+const ADMIN_CODE = process.env.ADMIN_CODE || '';
+const { hit, clientIp } = require('../services/rateLimit');
 
 const crypto = require('crypto');
 const TOKEN_TTL_MS = 12 * 60 * 60 * 1000;
 const sessionSecret = () => process.env.SESSION_SECRET || (ADMIN_CODE + '|' + (process.env.DATABASE_URL || ''));
 const sign = payload => crypto.createHmac('sha256', sessionSecret()).update(payload).digest('base64url');
 
-router.post('/login', (req, res) => {
-  const { code } = req.body;
-  if (code !== ADMIN_CODE) {
+router.post('/login', async (req, res) => {
+  if (!ADMIN_CODE) {
+    return res.status(503).json({ success: false, error: 'لم يتم ضبط رمز الإدارة بعد. أضف المتغير ADMIN_CODE في إعدادات الاستضافة.' });
+  }
+  try {
+    const rl = await hit(`admin-login:${clientIp(req)}`, 8, 15 * 60);
+    if (!rl.ok) return res.status(429).json({ success: false, error: 'محاولات كثيرة. حاول مرة أخرى بعد 15 دقيقة.' });
+  } catch (e) { console.error('Rate limit error:', e.message); }
+  const given = Buffer.from(String(req.body.code || ''));
+  const real  = Buffer.from(ADMIN_CODE);
+  if (given.length !== real.length || !crypto.timingSafeEqual(given, real)) {
     return res.status(401).json({ success: false, error: 'رمز الدخول غير صحيح. حاول مرة أخرى.' });
   }
   const payload = Buffer.from(JSON.stringify({ exp: Date.now() + TOKEN_TTL_MS, id: randomUUID() })).toString('base64url');

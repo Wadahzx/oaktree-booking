@@ -51,6 +51,7 @@
         <div>
           <div class="success-banner-title">تم تأكيد الحجز!</div>
           <div class="success-banner-msg" id="successMsg">تم حجز الغرفة بنجاح، وسيصلك تأكيد على بريدك الإلكتروني.</div>
+          <div id="calButtons" style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap"></div>
         </div>
         <button class="success-banner-close" id="successClose"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
       </div>
@@ -86,6 +87,19 @@
                       <input type="email" id="employeeEmail" name="employee_email" placeholder="name@oaktree.com" autocomplete="email" required>
                       <div class="input-hint">سيصلك تأكيد الحجز على هذا البريد.</div>
                       <div class="input-error" id="emailError">يرجى إدخال بريد إلكتروني صحيح.</div>
+                      <div class="verify-box" id="verifyBox">
+                        <div id="verifyIdle">
+                          <button type="button" class="btn btn-outline btn-sm" id="sendCodeBtn">تحقق من بريدك</button>
+                          <span class="input-hint" style="margin:0">سنرسل رمزاً من 6 أرقام إلى بريدك قبل الحجز.</span>
+                        </div>
+                        <div id="verifyCodeRow" data-open="0" style="display:none">
+                          <input type="text" id="bookCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000">
+                          <button type="button" class="btn btn-gold btn-sm" id="bookVerifyBtn">تأكيد الرمز</button>
+                          <button type="button" class="btn btn-outline btn-sm" id="bookResendBtn">إعادة إرسال الرمز</button>
+                        </div>
+                        <div id="verifiedBadge" class="verified-badge" style="display:none">✓ تم التحقق من بريدك الإلكتروني</div>
+                        <div class="input-error" id="verifyError" style="display:none"></div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -198,6 +212,26 @@
                     <div class="attendee-suggest hidden" id="attendeeSuggest"></div>
                     <div class="input-hint" id="attendeeHint"></div>
                     <div class="input-error" id="attendeeError"></div>
+                  </div>
+                  <div class="form-group">
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600">
+                      <input type="checkbox" id="repeatToggle"> حجز متكرر
+                    </label>
+                    <div id="repeatBox" class="form-row" style="display:none;margin-top:10px">
+                      <div class="form-group">
+                        <label for="repeatPattern">التكرار</label>
+                        <select id="repeatPattern">
+                          <option value="weekly">أسبوعياً</option>
+                          <option value="workdays">كل يوم عمل (الأحد - الخميس)</option>
+                          <option value="daily">يومياً</option>
+                        </select>
+                      </div>
+                      <div class="form-group">
+                        <label for="repeatUntil">حتى تاريخ</label>
+                        <input type="date" id="repeatUntil">
+                      </div>
+                    </div>
+                    <div class="input-hint" id="repeatHint" style="display:none">تُتخطى الأيام المحجوزة مسبقاً، وبحد أقصى 60 موعداً خلال 180 يوماً.</div>
                   </div>
                   <div class="form-group">
                     <label for="meetingNotes" data-i18n="book.notes">ملاحظات إضافية <span style="font-weight:400;color:var(--text-muted)">(اختياري)</span></label>
